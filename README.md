@@ -81,6 +81,15 @@ graph.plot(&mut rl_handle, GraphBuilder::default()
 );
 ```
 
+## Todo List
+- [ ] Dynamic Plots
+- [ ] Labeling for axis and plot title
+- [ ] Someway to increase the resolution
+- [ ] Some way to save the graph
+- [ ] Find a better way to include colorscheme as a way to color points
+- [ ] Make a better way to have primitives, that aren't just a point and lines
+- [ ] General quality of improvements
+
 ## Gallery
 
 ![Scatter Plot Example](docs/images/scatter.png)
