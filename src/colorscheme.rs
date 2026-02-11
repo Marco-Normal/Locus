@@ -52,7 +52,7 @@ impl Default for Colorscheme {
     }
 }
 
-static DRACULA: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static DRACULA: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 40,
         g: 42,
@@ -123,7 +123,7 @@ static DRACULA: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         }, // Pink
     ],
 });
-static NORD: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static NORD: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 46,
         g: 52,
@@ -193,7 +193,7 @@ static NORD: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         }, // Purple
     ],
 });
-static VIRIDIS: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static VIRIDIS: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 34,
         g: 34,
@@ -252,7 +252,7 @@ static VIRIDIS: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     ],
 });
 
-static SOLARIZED_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static SOLARIZED_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 0,
         g: 43,
@@ -329,7 +329,7 @@ static SOLARIZED_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     ],
 });
 
-static GITHUB_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static GITHUB_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 13,
         g: 17,
@@ -394,7 +394,7 @@ static GITHUB_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     ],
 });
 
-static MATPLOTLIB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static MATPLOTLIB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 255,
         g: 255,
@@ -465,7 +465,7 @@ static MATPLOTLIB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     ],
 });
 
-static SOLARIZED_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static SOLARIZED_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 253,
         g: 246,
@@ -530,7 +530,7 @@ static SOLARIZED_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     ],
 });
 
-static GITHUB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static GITHUB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 255,
         g: 255,

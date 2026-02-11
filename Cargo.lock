@@ -200,15 +200,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "knn"
-version = "0.1.0"
-dependencies = [
- "derive_builder",
- "rand",
- "raylib",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.180"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -222,6 +213,15 @@ checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
 dependencies = [
  "cfg-if",
  "windows-link",
+]
+
+[[package]]
+name = "locus"
+version = "0.1.0"
+dependencies = [
+ "derive_builder",
+ "rand",
+ "raylib",
 ]
 
 [[package]]
