@@ -25,7 +25,32 @@ The `Graph<T>` struct serves as the main container for visualization. It wraps a
 
 The `Graph` takes the subject's data bounds and the configured screen bounding box to create a `ViewTransformer`.
 
-![Architecture Diagram Placeholder](docs/images/architecture.png)
+```text
++-----------------------------------------------------------------------+
+|                      Graph<T> (impl PlotElement)                      |
+|                                                                       |
+|   +---------------------+            +----------------------------+   |
+|   |   GraphConfig       |            |      Subject (T)           |   |
+|   |  - BoundingBox      |            |   (impl ChartElement)      |   |
+|   |  - Colorscheme      |            |                            |   |
+|   |  - Offsets          |            |  - Defines Data Bounds     |   |
+|   +----------+----------+            |  - Draws specific data     |   |
+|              |                       +-------------+--------------+   |
+|              |                                     |                  |
+|              v                                     v                  |
+|   +---------------------+            +----------------------------+   |
+|   |   ViewTransformer   | <--------> | draw_in_view(rl, ..., view)|   |
+|   |                     |    uses    |                            |   |
+|   | Maps:               |            | Transforms Data Coords ->  |   |
+|   | Data <--> Screen    |            | Screen Coords for drawing  |   |
+|   +---------------------+            +----------------------------+   |
+|              |                                                        |
+|              v                                                        |
++-----------------------------------------------------------------------+
+               | .plot()
+               v
+      [ Raylib Render Context ]
+```
 
 ### View Transformation
 
