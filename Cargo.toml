@@ -2,6 +2,11 @@
 name = "locus"
 version = "0.1.0"
 edition = "2024"
+authors = ["Marco Túlio <marcotulio270903@gmail.com>"]
+description = "A small raylib based graphing library."
+readme = "README.md"
+repository = "https://github.com/Marco-Normal/Locus"
+license = "GPL-3.0"
 
 [dependencies]
 derive_builder = "0.20.2"

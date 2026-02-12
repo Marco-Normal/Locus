@@ -44,6 +44,13 @@ pub struct BBox {
 }
 
 impl BBox {
+    pub fn new(maximum: impl Into<Point>, minimum: impl Into<Point>) -> Self {
+        Self {
+            maximum: maximum.into(),
+            minimum: minimum.into(),
+        }
+    }
+
     pub fn width(&self) -> f32 {
         (self.maximum.x - self.minimum.x).abs()
     }

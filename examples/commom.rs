@@ -5,18 +5,28 @@ use derive_builder::Builder;
 use rand::prelude::*;
 use raylib::math::Vector2;
 use std::collections::HashMap;
+use std::ops::Range;
 const DEFAULT_MAX_ITER: usize = 1000;
 const DEFAULT_MIN_MOV: f32 = 1e-4;
-use crate::{
-    COLORS,
+use locus::{
     colorscheme::{Colorscheme, Themable},
-    dataset::{Dataset, DynamicShape},
+    dataset::Dataset,
     plottable::{
         point::{Point, PointConfigBuilder, Shape},
+        scatter::DynamicShape,
         view::{BBox, Offsets},
     },
     plotter::{ChartElement, PlotElement},
 };
+const COLORS: &[raylib::prelude::Color] = &[
+    raylib::prelude::Color::AQUA,
+    raylib::prelude::Color::SIENNA,
+    raylib::prelude::Color::FUCHSIA,
+    raylib::prelude::Color::TEAL,
+    raylib::prelude::Color::LIMEGREEN,
+    raylib::prelude::Color::YELLOW,
+    raylib::prelude::Color::PURPLE,
+];
 #[derive(Debug)]
 struct Centroid {
     center: Point,
@@ -206,7 +216,7 @@ impl ChartElement for KMeansPlot<'_> {
         &self,
         rl: &mut raylib::prelude::RaylibDrawHandle,
         configs: Self::Config,
-        view: &crate::plottable::view::ViewTransformer,
+        view: &locus::plottable::view::ViewTransformer,
     ) {
         if self.kmeans.data.data.is_empty() {
             return;
@@ -295,7 +305,7 @@ impl ChartElement for DynKMeansPlot<'_> {
         &self,
         rl: &mut raylib::prelude::RaylibDrawHandle,
         configs: Self::Config,
-        view: &crate::plottable::view::ViewTransformer,
+        view: &locus::plottable::view::ViewTransformer,
     ) {
         if self.kmeans.data.data.is_empty() {
             return;
@@ -344,4 +354,153 @@ impl ChartElement for DynKMeansPlot<'_> {
             },
         }
     }
+}
+
+#[derive(Debug, Clone, Builder)]
+#[builder(pattern = "owned")]
+#[builder(default)]
+#[builder(name = "MakeCirclesBuilder")]
+pub struct MakeCirclesConfig {
+    n_circles: usize,
+    n_samples: usize,
+    radius: Range<f32>,
+    x_range: Range<f32>,
+    y_range: Range<f32>,
+}
+
+impl MakeCirclesBuilder {
+    #[must_use]
+    pub fn with_equal_ranges(self, range: Range<f32>) -> Self {
+        Self {
+            x_range: Some(range.clone()),
+            y_range: Some(range),
+            ..self
+        }
+    }
+}
+
+impl Default for MakeCirclesConfig {
+    fn default() -> Self {
+        Self {
+            n_circles: 3,
+            n_samples: 100,
+            radius: 1.0..10.0,
+            x_range: -10.0..10.0,
+            y_range: -10.0..10.0,
+        }
+    }
+}
+
+pub fn make_circles(config: MakeCirclesConfig) -> Dataset {
+    let mut rng = rand::rng();
+    let mut radius: Vec<f32> = Vec::with_capacity(config.n_circles);
+    let mut centers: Vec<Vector2> = Vec::with_capacity(config.n_circles);
+    for _ in 0..config.n_circles {
+        radius.push(rng.random_range(config.radius.clone()));
+        centers.push(Vector2::new(
+            rng.random_range(config.x_range.clone()),
+            rng.random_range(config.y_range.clone()),
+        ));
+    }
+    // let (mut min_x, mut max_x) = (f32::INFINITY, f32::NEG_INFINITY);
+    // let (mut min_y, mut max_y) = (f32::INFINITY, f32::NEG_INFINITY);
+    let mut data: Vec<Point> = Vec::with_capacity(config.n_samples);
+    for i in 0..config.n_samples {
+        let r = radius[i % config.n_circles] * f32::sqrt(rng.random::<f32>());
+        let theta = rng.random::<f32>() * 2.0 * std::f32::consts::PI;
+        let px = centers[i % config.n_circles].x + r * f32::cos(theta);
+
+        let py = centers[i % config.n_circles].y + r * f32::sin(theta);
+        // if px >= max_x {
+        //     max_x = px;
+        // } else if px <= min_x {
+        //     min_x = px;
+        // }
+        // if py >= max_y {
+        //     max_y = py;
+        // } else if py <= min_y {
+        //     min_y = py;
+        // }
+        data.push(Point { x: px, y: py });
+    }
+    Dataset::new(data)
+}
+
+#[derive(Clone, Debug, Builder)]
+#[builder(pattern = "owned", name = "MakeMoonsBuilder", default)]
+pub struct MakeMoonsConfig {
+    n_samples: usize,
+    noise: bool,
+    x_range: Range<f32>,
+    y_range: Range<f32>,
+    radius: Range<f32>,
+    n_moons: usize,
+    scale: f32,
+}
+
+impl MakeMoonsBuilder {
+    #[must_use]
+    pub fn with_equal_ranges(self, range: Range<f32>) -> Self {
+        Self {
+            x_range: Some(range.clone()),
+            y_range: Some(range),
+            ..self
+        }
+    }
+}
+
+impl Default for MakeMoonsConfig {
+    fn default() -> Self {
+        Self {
+            n_samples: 100,
+            noise: true,
+            x_range: -10.0..10.0,
+            y_range: -10.0..10.0,
+            radius: 1.0..5.0,
+            n_moons: 2,
+            scale: 0.3,
+        }
+    }
+}
+pub fn make_moons(config: MakeMoonsConfig) -> Dataset {
+    let mut rng = rand::rng();
+    let mut data: Vec<Point> = Vec::with_capacity(config.n_samples);
+    let mut centers: Vec<Vector2> = Vec::with_capacity(config.n_moons);
+    let mut radius: Vec<f32> = Vec::with_capacity(config.n_moons);
+    // let (mut min_x, mut max_x) = (f32::INFINITY, f32::NEG_INFINITY);
+    // let (mut min_y, mut max_y) = (f32::INFINITY, f32::NEG_INFINITY);
+    for _ in 0..config.n_moons {
+        centers.push(Vector2::new(
+            rng.random_range(config.x_range.clone()),
+            rng.random_range(config.y_range.clone()),
+            // 0.0,
+            // 0.0,
+        ));
+        radius.push(rng.random_range(config.radius.clone()));
+    }
+    for i in 0..config.n_samples {
+        let mut x: f32;
+        let mut y: f32;
+        let should_flip = if i % 2 == 0 { -1.0 } else { 1.0 };
+        let theta = rng.random_range(0.0..std::f32::consts::PI);
+        x = (radius[i % config.n_moons] * f32::cos(theta)) + centers[i % config.n_moons].x;
+        y = (radius[i % config.n_moons] * f32::sin(theta) * should_flip)
+            + should_flip * centers[i % config.n_moons].y;
+        if config.noise {
+            x += rng.random_range(-config.scale / 2.0..config.scale / 2.0);
+            y += rng.random_range(-config.scale / 2.0..config.scale / 2.0);
+        }
+        data.push(Point { x, y });
+        // if x >= max_x {
+        //     max_x = x;
+        // } else if x <= min_x {
+        //     min_x = x;
+        // }
+        // if y >= max_y {
+        //     max_y = y;
+        // } else if y <= min_y {
+        //     min_y = y;
+        // }
+    }
+    Dataset::new(data)
 }

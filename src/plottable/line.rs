@@ -9,7 +9,6 @@ use raylib::prelude::*;
 
 use crate::{
     colorscheme::Themable,
-    dataset::Dataset,
     plottable::{
         point::Point,
         view::{BBox, Offsets, ViewTransformer},
@@ -119,41 +118,6 @@ pub struct Axis {
     pub(crate) y_axis: Line,
 }
 
-/// Given a dataset, generate axis from it, snapping to "nice numbers", instead of
-/// exclusively going from max to min.
-impl From<Dataset> for Axis {
-    fn from(value: Dataset) -> Self {
-        Self {
-            x_axis: Line {
-                from: Point {
-                    x: value.range_min.x,
-                    y: value.range_min.y,
-                },
-                to: Point {
-                    x: value.range_max.x,
-                    y: value.range_min.y,
-                },
-            },
-            y_axis: Line {
-                from: Point {
-                    x: value.range_min.x,
-                    y: value.range_min.y,
-                },
-                to: Point {
-                    x: value.range_min.x,
-                    y: value.range_max.y,
-                },
-            },
-        }
-    }
-}
-
-impl From<&Dataset> for Axis {
-    fn from(value: &Dataset) -> Self {
-        Self::nice_fit(value, 0.01, 15)
-    }
-}
-
 impl Axis {
     #[must_use]
     pub fn new(x_axis: Line, y_axis: Line) -> Self {
@@ -167,40 +131,31 @@ impl Axis {
         (self.y_axis.to.y - self.y_axis.from.y).abs()
     }
 
-    fn nice_fit(dataset: &Dataset, padding_pct: f32, target_ticks: usize) -> Self {
-        let (nice_min_x, nice_max_x) = calculate_nice_range(
-            dataset.range_min.x,
-            dataset.range_max.x,
+    /// Creates a new Axis that fits the given data ranges, applying "nice number" algorithms
+    /// to determine the ticks and padding.
+    #[must_use]
+    pub fn fitting(
+        x_range: Range<f32>,
+        y_range: Range<f32>,
+        padding_pct: f32,
+        ticks: usize,
+    ) -> Self {
+        let (min_x, max_x) = calculate_nice_range(
+            x_range.start.min(x_range.end),
+            x_range.end.max(x_range.start),
             padding_pct,
-            target_ticks,
+            ticks,
         );
-        let (nice_min_y, nice_max_y) = calculate_nice_range(
-            dataset.range_min.y,
-            dataset.range_max.y,
+        let (min_y, max_y) = calculate_nice_range(
+            y_range.start.min(y_range.end),
+            y_range.end.max(y_range.start),
             padding_pct,
-            target_ticks,
+            ticks,
         );
-        Axis {
-            x_axis: Line {
-                from: Point {
-                    x: nice_min_x,
-                    y: nice_min_y,
-                },
-                to: Point {
-                    x: nice_max_x,
-                    y: nice_min_y,
-                },
-            },
-            y_axis: Line {
-                from: Point {
-                    x: nice_min_x,
-                    y: nice_min_y,
-                },
-                to: Point {
-                    x: nice_min_x,
-                    y: nice_max_y,
-                },
-            },
+
+        Self {
+            x_axis: Line::new(Point::new(min_x, min_y), Point::new(max_x, min_y)),
+            y_axis: Line::new(Point::new(min_x, min_y), Point::new(min_x, max_y)),
         }
     }
 }
@@ -249,7 +204,10 @@ impl From<(Range<f32>, Range<f32>)> for Axis {
 #[builder(pattern = "owned")]
 #[builder(default)]
 pub struct AxisConfigs {
-    arrows: bool,
+    arrow_x: bool,
+    arrow_y: bool,
+    x_axis: bool,
+    y_axis: bool,
     arrow_length: f32,
     arrow_width: f32,
     color: Color,
@@ -258,11 +216,66 @@ pub struct AxisConfigs {
     bbox: BBox,
 }
 
+impl AxisConfigsBuilder {
+    #[must_use]
+    pub fn strip_both_arrows(self) -> Self {
+        Self {
+            arrow_x: Some(false),
+            arrow_y: Some(false),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn strip_y_arrow(self) -> Self {
+        Self {
+            arrow_y: Some(false),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn strip_x_arrow(self) -> Self {
+        Self {
+            arrow_x: Some(false),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn strip_both_axis(self) -> Self {
+        Self {
+            x_axis: Some(false),
+            y_axis: Some(false),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn strip_y_axis(self) -> Self {
+        Self {
+            y_axis: Some(false),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn strip_x_axis(self) -> Self {
+        Self {
+            x_axis: Some(false),
+            ..self
+        }
+    }
+}
+
 impl Default for AxisConfigs {
     fn default() -> Self {
         let thickness = 2.0;
         Self {
-            arrows: true,
+            arrow_x: true,
+            arrow_y: true,
+            x_axis: true,
+            y_axis: true,
             arrow_length: 4.0 * thickness,
             color: Color::WHITE,
             thickness,
@@ -273,18 +286,18 @@ impl Default for AxisConfigs {
     }
 }
 
-impl From<AxisConfigs> for LineConfig {
-    fn from(value: AxisConfigs) -> Self {
-        Self {
-            thickness: value.thickness,
-            color: value.color,
-            arrow: value.arrows,
-            arrow_length: value.arrow_length,
-            arrow_width: value.arrow_width,
-            offsets: value.offsets,
-        }
-    }
-}
+// impl From<AxisConfigs> for LineConfig {
+//     fn from(value: AxisConfigs) -> Self {
+//         Self {
+//             thickness: value.thickness,
+//             color: value.color,
+//             arrow: value.arrows,
+//             arrow_length: value.arrow_length,
+//             arrow_width: value.arrow_width,
+//             offsets: value.offsets,
+//         }
+//     }
+// }
 
 impl ChartElement for Axis {
     type Config = AxisConfigs;
@@ -303,17 +316,29 @@ impl ChartElement for Axis {
             (Line::new(x_start, x_end), Line::new(y_start, y_end))
         };
 
-        let line_config = LineConfig {
+        let line_config_x = LineConfig {
             thickness: configs.thickness,
             color: configs.color,
-            arrow: configs.arrows,
+            arrow: configs.arrow_x,
             arrow_length: configs.arrow_length,
             arrow_width: configs.arrow_width,
             offsets: configs.offsets,
         };
 
-        x_line.plot(rl, line_config);
-        y_line.plot(rl, line_config);
+        let line_config_y = LineConfig {
+            thickness: configs.thickness,
+            color: configs.color,
+            arrow: configs.arrow_y,
+            arrow_length: configs.arrow_length,
+            arrow_width: configs.arrow_width,
+            offsets: configs.offsets,
+        };
+        if configs.x_axis {
+            x_line.plot(rl, line_config_x);
+        }
+        if configs.y_axis {
+            y_line.plot(rl, line_config_y);
+        }
     }
 
     fn data_bounds(&self) -> BBox {

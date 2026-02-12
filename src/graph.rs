@@ -13,7 +13,6 @@ use crate::{
     plotter::{ChartElement, PlotElement},
 };
 use derive_builder::Builder;
-use raylib::prelude::RaylibDraw;
 /// Represents a graph over `subject`, orchestrating elements such as axis, gridlines
 /// and other important pieces.
 pub struct Graph<T>
@@ -70,7 +69,7 @@ where
         // We need to construct the view where the graph elements will live.
         // As such, we need to provide the screen-bounds, given by the configs
         // and the data-bounds, given by the `subject.data_bounds()`
-        rl.clear_background(configs.colorscheme.background);
+        // rl.clear_background(configs.colorscheme.background);
         let screen_bbox = configs.bounding_box;
         let data_bbox = if let Some(axis) = configs.axis {
             axis.data_bounds()
@@ -102,7 +101,7 @@ where
         if let Some(axis) = configs.axis {
             let axis_conf = configs.axis_configs.unwrap_or(
                 AxisConfigsBuilder::default()
-                    .bbox(configs.bounding_box)
+                    // .bbox(configs.bounding_box)
                     .color(configs.colorscheme.axis)
                     .build()
                     .expect("Default values set"),
