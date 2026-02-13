@@ -8,6 +8,7 @@ use crate::{
             Axis, AxisConfigs, AxisConfigsBuilder, GridLines, GridLinesConfig,
             GridLinesConfigBuilder,
         },
+        point::Point,
         view::{BBox, Offsets, ViewTransformer},
     },
     plotter::{ChartElement, PlotElement},
@@ -70,13 +71,18 @@ where
         // As such, we need to provide the screen-bounds, given by the configs
         // and the data-bounds, given by the `subject.data_bounds()`
         // rl.clear_background(configs.colorscheme.background);
-        let screen_bbox = configs.bounding_box;
+        let screen = BBox::new(
+            configs.bounding_box.minimum
+                + Point::new(configs.offset.offset_x, configs.offset.offset_y),
+            configs.bounding_box.maximum
+                + Point::new(configs.offset.offset_x, configs.offset.offset_y),
+        );
         let data_bbox = if let Some(axis) = configs.axis {
             axis.data_bounds()
         } else {
             self.subject.data_bounds()
         };
-        let view = ViewTransformer::new(data_bbox, screen_bbox, configs.offset);
+        let view = ViewTransformer::new(data_bbox, screen);
         // We have all the necessary parts for constructing the graph. With that is a job of
         // seeing what we have and what don't.
         if let Some(grid) = configs.grid {

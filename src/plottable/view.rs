@@ -55,7 +55,7 @@ impl BBox {
         (self.maximum.x - self.minimum.x).abs()
     }
 
-    pub fn heigth(&self) -> f32 {
+    pub fn height(&self) -> f32 {
         (self.maximum.y - self.minimum.y).abs()
     }
 }
@@ -87,15 +87,13 @@ pub fn map_range(value: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f3
 pub struct ViewTransformer {
     pub data_bounds: BBox,
     pub screen_bounds: BBox,
-    pub offset: Offsets,
 }
 
 impl ViewTransformer {
-    pub fn new(data_bounds: BBox, screen_bounds: BBox, offset: Offsets) -> Self {
+    pub fn new(data_bounds: BBox, screen_bounds: BBox) -> Self {
         Self {
             data_bounds,
             screen_bounds,
-            offset,
         }
     }
 
@@ -115,7 +113,7 @@ impl ViewTransformer {
             self.data_bounds.maximum.x,
             self.screen_bounds.minimum.x,
             self.screen_bounds.maximum.x,
-        ) + self.offset.offset_x;
+        );
 
         // FLIP Y-AXIS:
         // Data Min (low value) -> Screen Max (bottom of screen, high pixel count)
@@ -126,7 +124,7 @@ impl ViewTransformer {
             self.data_bounds.maximum.y,
             self.screen_bounds.maximum.y,
             self.screen_bounds.minimum.y,
-        ) + self.offset.offset_y;
+        );
 
         Point { x, y }
     }

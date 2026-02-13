@@ -44,7 +44,6 @@ pub struct LineConfig {
     arrow: bool,
     arrow_length: f32,
     arrow_width: f32,
-    offsets: Offsets,
 }
 
 impl Default for LineConfig {
@@ -56,7 +55,6 @@ impl Default for LineConfig {
             arrow: true,
             arrow_length: 4.0 * thickness,
             arrow_width: 3.5 * thickness,
-            offsets: Offsets::default(),
         }
     }
 }
@@ -74,19 +72,11 @@ impl Default for LineConfig {
 impl PlotElement for Line {
     type Config = LineConfig;
     fn plot(&self, rl: &mut RaylibDrawHandle, configs: Self::Config) {
-        let from = Vector2::new(
-            self.from.x + configs.offsets.offset_x,
-            self.from.y + configs.offsets.offset_y,
-        );
-        let to = Vector2::new(
-            self.to.x + configs.offsets.offset_x,
-            self.to.y + configs.offsets.offset_y,
-        );
         if configs.arrow {
-            rl.draw_line_ex(from, to, configs.thickness, configs.color);
+            rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
             let direction = Vector2 {
-                x: to.x - from.x,
-                y: to.y - from.y,
+                x: self.to.x - self.from.x,
+                y: self.to.y - self.from.y,
             };
             let length = direction.length();
             if length <= 0.0 {
@@ -96,17 +86,17 @@ impl PlotElement for Line {
             let vdx = -direction_norm.y;
             let vdy = direction_norm.x;
             let p1 = Vector2::new(
-                to.x - configs.arrow_length * direction_norm.x + configs.arrow_width * vdx,
-                to.y - configs.arrow_length * direction_norm.y + configs.arrow_width * vdy,
+                self.to.x - configs.arrow_length * direction_norm.x + configs.arrow_width * vdx,
+                self.to.y - configs.arrow_length * direction_norm.y + configs.arrow_width * vdy,
             );
             let p2 = Vector2::new(
-                to.x - configs.arrow_length * direction_norm.x - configs.arrow_width * vdx,
-                to.y - configs.arrow_length * direction_norm.y - configs.arrow_width * vdy,
+                self.to.x - configs.arrow_length * direction_norm.x - configs.arrow_width * vdx,
+                self.to.y - configs.arrow_length * direction_norm.y - configs.arrow_width * vdy,
             );
-            let tail = Vector2::new(to.x, to.y);
+            let tail = Vector2::new(self.to.x, self.to.y);
             rl.draw_triangle(p2, p1, tail, configs.color);
         } else {
-            rl.draw_line_ex(from, to, configs.thickness, configs.color);
+            rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
         }
     }
 }
@@ -322,7 +312,6 @@ impl ChartElement for Axis {
             arrow: configs.arrow_x,
             arrow_length: configs.arrow_length,
             arrow_width: configs.arrow_width,
-            offsets: configs.offsets,
         };
 
         let line_config_y = LineConfig {
@@ -331,7 +320,6 @@ impl ChartElement for Axis {
             arrow: configs.arrow_y,
             arrow_length: configs.arrow_length,
             arrow_width: configs.arrow_width,
-            offsets: configs.offsets,
         };
         if configs.x_axis {
             x_line.plot(rl, line_config_x);
@@ -410,7 +398,6 @@ pub struct GridLinesConfig {
     color: Color,
     alpha: f32,
     grid_offset: Offsets,
-    plot_offset: Offsets,
     thickness: f32,
     max_ticks: usize,
     bbox: BBox,
@@ -422,7 +409,6 @@ impl Default for GridLinesConfig {
             color: Color::WHITE,
             alpha: 0.3,
             grid_offset: Offsets::default(),
-            plot_offset: Offsets::default(),
             thickness: 1.0,
             max_ticks: 10,
             bbox: BBox::default(),
@@ -474,18 +460,8 @@ impl GridLines {
         let start = view.to_screen(&Point::new(data_x, data_y_start));
         let end = view.to_screen(&Point::new(data_x, data_y_end));
 
-        // Apply offsets if needed (usually view handles this, but plot_offset is for nudging)
-        let final_start = Vector2::new(
-            start.x + config.plot_offset.offset_x,
-            start.y + config.plot_offset.offset_y,
-        );
-        let final_end = Vector2::new(
-            end.x + config.plot_offset.offset_x,
-            end.y + config.plot_offset.offset_y,
-        );
-
         let color = config.color.alpha(config.alpha);
-        rl.draw_line_ex(final_start, final_end, config.thickness, color);
+        rl.draw_line_ex(start, end, config.thickness, color);
     }
 
     fn draw_h_line(
@@ -501,17 +477,8 @@ impl GridLines {
         let start = view.to_screen(&Point::new(data_x_start, data_y));
         let end = view.to_screen(&Point::new(data_x_end, data_y));
 
-        let final_start = Vector2::new(
-            start.x + config.plot_offset.offset_x,
-            start.y + config.plot_offset.offset_y,
-        );
-        let final_end = Vector2::new(
-            end.x + config.plot_offset.offset_x,
-            end.y + config.plot_offset.offset_y,
-        );
-
         let color = config.color.alpha(config.alpha);
-        rl.draw_line_ex(final_start, final_end, config.thickness, color);
+        rl.draw_line_ex(start, end, config.thickness, color);
     }
 
     fn get_spacing(&self, length: f32, separation: Separation, max_ticks: usize) -> f32 {
