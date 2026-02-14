@@ -3,7 +3,7 @@ use crate::{
     dataset::Dataset,
     plottable::{
         point::{Point, PointConfigBuilder, Shape},
-        view::{BBox, Offsets, ViewTransformer},
+        view::{BBox, ViewTransformer},
     },
     plotter::{ChartElement, PlotElement},
 };
@@ -23,8 +23,6 @@ pub enum Strategy<T> {
 #[derive(Builder)]
 #[builder(pattern = "owned", name = "ScatterPlotBuilder")]
 pub struct ScatterPlotConfig {
-    #[builder(default)]
-    offset: Offsets,
     #[builder(setter(into, strip_option), default = "None")]
     size: Option<Strategy<f32>>,
     #[builder(setter(into, strip_option), default = "None")]
@@ -136,7 +134,6 @@ impl ChartElement for ScatterPlot<'_> {
             screen_point.plot(
                 rl,
                 PointConfigBuilder::default()
-                    .offsets(configs.offset) // Apply final nudges if needed
                     .size(size)
                     .shape(shape)
                     .color(color)

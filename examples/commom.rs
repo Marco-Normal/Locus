@@ -14,7 +14,7 @@ use locus::{
     plottable::{
         point::{Point, PointConfigBuilder, Shape},
         scatter::DynamicShape,
-        view::{BBox, Offsets},
+        view::BBox,
     },
     plotter::{ChartElement, PlotElement},
 };
@@ -164,10 +164,8 @@ impl<'a> KMeans<'a> {
 #[derive(Builder)]
 #[builder(pattern = "owned", name = "KMeansPlotBuilder")]
 pub struct KMeansConfig {
-    #[builder(default)]
-    bbox: BBox,
-    #[builder(default)]
-    offset: Offsets,
+    // #[builder(default)]
+    // bbox: BBox,
     #[builder(default = "default_shape()")]
     data_shape: DynamicShape,
     #[builder(default = "default_shape()")]
@@ -183,8 +181,7 @@ pub struct KMeansConfig {
 impl Default for KMeansConfig {
     fn default() -> Self {
         Self {
-            bbox: BBox::default(),
-            offset: Offsets::default(),
+            // bbox: BBox::default(),
             data_shape: default_shape(),
             centroid_shape: default_shape(),
             data_size: 3.0,

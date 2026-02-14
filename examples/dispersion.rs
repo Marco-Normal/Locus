@@ -1,23 +1,19 @@
 #![allow(dead_code)]
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
-use std::{f32, ops::Range};
+use std::f32;
 
-use derive_builder::Builder;
-use rand::Rng;
 use raylib::prelude::*;
 mod commom;
 use commom::{make_circles, make_moons};
 use locus::{
     HEIGHT, WIDTH,
     colorscheme::GITHUB_DARK,
-    dataset::Dataset,
     graph::{Graph, GraphBuilder},
     plottable::{
-        line::{Axis, AxisConfigsBuilder, GridLines, Orientation, Separation},
-        point::Point,
+        line::{Axis, AxisConfigsBuilder, GridLines, Orientation},
         scatter::{ScatterPlot, ScatterPlotBuilder},
-        view::{BBox, Offsets},
+        view::{BBox, Viewport},
     },
     plotter::PlotElement,
 };
@@ -69,9 +65,11 @@ fn main() {
         g1.plot(
             &mut d,
             GraphBuilder::default()
-                .bounding_box(BBox::new(
-                    ((WIDTH / 2 + 10) as f32, HEIGHT as f32 - 10.0),
-                    (10.0, 10.0),
+                .viewport(Viewport::new(
+                    10.0,
+                    10.0,
+                    (WIDTH / 2) as f32,
+                    (HEIGHT) as f32,
                 ))
                 .colorscheme(colorscheme.clone())
                 .axis(axis)
@@ -103,11 +101,12 @@ fn main() {
         g2.plot(
             &mut d,
             GraphBuilder::default()
-                .bounding_box(BBox::new(
-                    (WIDTH as f32, HEIGHT as f32),
-                    ((WIDTH / 2) as f32, 10.0),
+                .viewport(Viewport::new(
+                    (WIDTH / 2) as f32,
+                    10.0,
+                    (WIDTH / 2) as f32,
+                    (HEIGHT) as f32,
                 ))
-                .offset(Offsets::new(0.0, -10.0))
                 .colorscheme(colorscheme.clone())
                 .axis(axis_d2)
                 // .grid(GridLines::new(axis_d2, Orientation::default()))

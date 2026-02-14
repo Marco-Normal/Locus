@@ -3,7 +3,6 @@
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 #![forbid(unsafe_code)]
 
-use crate::plottable::view::Offsets;
 use crate::plotter::PlotElement;
 use derive_builder::Builder;
 use raylib::math::Vector2;
@@ -25,7 +24,6 @@ pub struct PointConfig {
     color: Color,
     size: f32,
     shape: Shape,
-    offsets: Offsets,
 }
 
 impl Default for PointConfig {
@@ -34,7 +32,6 @@ impl Default for PointConfig {
             color: Color::RED,
             size: 10.0,
             shape: Shape::Circle,
-            offsets: Offsets::default(),
         }
     }
 }
@@ -53,8 +50,8 @@ impl PlotElement for Point {
     type Config = PointConfig;
 
     fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, configs: Self::Config) {
-        let x = self.x + configs.offsets.offset_x;
-        let y = self.y + configs.offsets.offset_y;
+        let x = self.x;
+        let y = self.y;
         match configs.shape {
             Shape::Circle => {
                 rl.draw_circle(x as i32, y as i32, configs.size, configs.color);

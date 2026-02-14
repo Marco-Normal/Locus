@@ -8,8 +8,7 @@ use crate::{
             Axis, AxisConfigs, AxisConfigsBuilder, GridLines, GridLinesConfig,
             GridLinesConfigBuilder,
         },
-        point::Point,
-        view::{BBox, Offsets, ViewTransformer},
+        view::{ViewTransformer, Viewport},
     },
     plotter::{ChartElement, PlotElement},
 };
@@ -45,9 +44,7 @@ where
     #[builder(default)]
     subject_configs: T::Config,
     #[builder(default)]
-    offset: Offsets,
-    #[builder(default)]
-    bounding_box: BBox,
+    viewport: Viewport,
     #[builder(setter(into, strip_option), default = "None")]
     axis: Option<Axis>,
     #[builder(setter(into, strip_option), default = "None")]
@@ -71,12 +68,7 @@ where
         // As such, we need to provide the screen-bounds, given by the configs
         // and the data-bounds, given by the `subject.data_bounds()`
         // rl.clear_background(configs.colorscheme.background);
-        let screen = BBox::new(
-            configs.bounding_box.minimum
-                + Point::new(configs.offset.offset_x, configs.offset.offset_y),
-            configs.bounding_box.maximum
-                + Point::new(configs.offset.offset_x, configs.offset.offset_y),
-        );
+        let screen = configs.viewport;
         let data_bbox = if let Some(axis) = configs.axis {
             axis.data_bounds()
         } else {
@@ -90,7 +82,6 @@ where
             // from element.
             let grid_conf = configs.grid_configs.unwrap_or({
                 GridLinesConfigBuilder::default()
-                    .bbox(configs.bounding_box)
                     .color(configs.colorscheme.grid)
                     .build()
                     .expect("Default values set")
@@ -107,7 +98,6 @@ where
         if let Some(axis) = configs.axis {
             let axis_conf = configs.axis_configs.unwrap_or(
                 AxisConfigsBuilder::default()
-                    // .bbox(configs.bounding_box)
                     .color(configs.colorscheme.axis)
                     .build()
                     .expect("Default values set"),

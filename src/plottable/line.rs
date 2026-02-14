@@ -11,7 +11,7 @@ use crate::{
     colorscheme::Themable,
     plottable::{
         point::Point,
-        view::{BBox, Offsets, ViewTransformer},
+        view::{BBox, ViewTransformer},
     },
     plotter::{ChartElement, PlotElement},
 };
@@ -202,8 +202,6 @@ pub struct AxisConfigs {
     arrow_width: f32,
     color: Color,
     thickness: f32,
-    offsets: Offsets,
-    bbox: BBox,
 }
 
 impl AxisConfigsBuilder {
@@ -270,8 +268,6 @@ impl Default for AxisConfigs {
             color: Color::WHITE,
             thickness,
             arrow_width: 4.0 * thickness,
-            offsets: Offsets::default(),
-            bbox: BBox::default(),
         }
     }
 }
@@ -397,10 +393,8 @@ impl GridLines {
 pub struct GridLinesConfig {
     color: Color,
     alpha: f32,
-    grid_offset: Offsets,
     thickness: f32,
     max_ticks: usize,
-    bbox: BBox,
 }
 
 impl Default for GridLinesConfig {
@@ -408,10 +402,8 @@ impl Default for GridLinesConfig {
         Self {
             color: Color::WHITE,
             alpha: 0.3,
-            grid_offset: Offsets::default(),
             thickness: 1.0,
             max_ticks: 10,
-            bbox: BBox::default(),
         }
     }
 }

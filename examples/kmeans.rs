@@ -14,7 +14,7 @@ use locus::{
         line::{Axis, GridLines, Orientation, Separation},
         point::{Point, PointConfigBuilder, Shape},
         scatter::ScatterPlotBuilder,
-        view::BBox,
+        view::{BBox, Viewport},
     },
     plotter::PlotElement,
 };
@@ -64,10 +64,7 @@ fn main() {
         graph.plot(
             &mut d,
             GraphBuilder::default()
-                .bounding_box(BBox {
-                    maximum: Point::new((WIDTH - 40) as f32, (HEIGHT - 40) as f32),
-                    minimum: (40.0, 40.0).into(),
-                })
+                .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
                 .grid(grid_lines)
                 .axis(axis)
                 .subject_configs(KMeansPlotBuilder::default().build().unwrap())
