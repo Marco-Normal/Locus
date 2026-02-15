@@ -104,7 +104,7 @@ impl ChartElement for ScatterPlot<'_> {
     fn draw_in_view(
         &self,
         rl: &mut raylib::prelude::RaylibDrawHandle,
-        configs: Self::Config,
+        configs: &Self::Config,
         view: &ViewTransformer,
     ) {
         self.data.data.iter().enumerate().for_each(|(i, p)| {
@@ -133,7 +133,7 @@ impl ChartElement for ScatterPlot<'_> {
             };
             screen_point.plot(
                 rl,
-                PointConfigBuilder::default()
+                &PointConfigBuilder::default()
                     .size(size)
                     .shape(shape)
                     .color(color)

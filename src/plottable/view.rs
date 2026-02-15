@@ -50,11 +50,11 @@ impl BBox {
     }
 
     pub fn width(&self) -> f32 {
-        (self.maximum.x - self.minimum.x).abs()
+        self.maximum.x - self.minimum.x
     }
 
     pub fn height(&self) -> f32 {
-        (self.maximum.y - self.minimum.y).abs()
+        self.maximum.y - self.minimum.y
     }
 }
 
@@ -135,26 +135,39 @@ impl Viewport {
     #[inline]
     pub fn outer_bbox(&self) -> BBox {
         BBox::new(
-            (self.x, self.y),
             (self.x + self.width, self.y + self.height),
+            (self.x, self.y),
         )
     }
 
     /// Inner plotting area (after margins), in screen coordinates.
     #[inline]
     pub fn inner_bbox(&self) -> BBox {
-        BBox::new(
-            (self.x + self.margins.left, self.y + self.margins.top),
-            (
-                self.x + self.width - self.margins.right,
-                self.y + self.height - self.margins.bottom,
-            ),
-        )
+        // minimum must be top-left; maximum must be bottom-right
+        // let minimum = (self.x + self.margins.left, self.y + self.margins.top);
+        // let maximum = (
+        //     self.x + self.width - self.margins.right,
+        //     self.y + self.height - self.margins.bottom,
+        // );
+
+        let minimum = (
+            self.x + self.margins.left,
+            self.y + self.height - self.margins.bottom,
+        );
+        let maximum = (
+            self.x + self.width - self.margins.right,
+            self.y + self.margins.top,
+        );
+        BBox::new(maximum, minimum)
     }
 }
 
-pub fn map_range(value: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
-    (value - in_min) / (in_max - in_min) * (out_max - out_min) + out_min
+/// Linearly maps a value from one range to another
+fn map_val(val: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
+    if (in_max - in_min).abs() < f32::EPSILON {
+        return out_min; // Avoid division by zero if range is 0
+    }
+    (val - in_min) / (in_max - in_min) * (out_max - out_min) + out_min
 }
 #[derive(Debug, Clone, Copy)]
 pub struct ViewTransformer {
@@ -164,24 +177,20 @@ pub struct ViewTransformer {
 
 impl ViewTransformer {
     pub fn new(data_bounds: BBox, screen_bounds: Viewport) -> Self {
+        let sb = screen_bounds.inner_bbox();
+        // debug_assert!(sb.minimum.x <= sb.maximum.x, "screen bbox has inverted X");
+        // debug_assert!(sb.minimum.y <= sb.maximum.y, "screen bbox has inverted Y");
+
         Self {
             data_bounds,
             screen_bounds,
         }
     }
 
-    /// Linearly maps a value from one range to another
-    fn map_val(val: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
-        if (in_max - in_min).abs() < f32::EPSILON {
-            return out_min; // Avoid division by zero if range is 0
-        }
-        (val - in_min) / (in_max - in_min) * (out_max - out_min) + out_min
-    }
-
     /// Converts a point from Data Space to Screen Space
     pub fn to_screen(&self, point: &Point) -> Point {
         let screen_bounds = self.screen_bounds.inner_bbox();
-        let x = Self::map_val(
+        let x = map_val(
             point.x,
             self.data_bounds.minimum.x,
             self.data_bounds.maximum.x,
@@ -189,10 +198,7 @@ impl ViewTransformer {
             screen_bounds.maximum.x,
         );
 
-        // FLIP Y-AXIS:
-        // Data Min (low value) -> Screen Max (bottom of screen, high pixel count)
-        // Data Max (high value) -> Screen Min (top of screen, 0)
-        let y = Self::map_val(
+        let y = map_val(
             point.y,
             self.data_bounds.minimum.y,
             self.data_bounds.maximum.y,

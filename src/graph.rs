@@ -63,7 +63,7 @@ where
 {
     type Config = GraphConfig<T>;
 
-    fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, mut configs: Self::Config) {
+    fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, configs: &Self::Config) {
         // We need to construct the view where the graph elements will live.
         // As such, we need to provide the screen-bounds, given by the configs
         // and the data-bounds, given by the `subject.data_bounds()`
@@ -75,6 +75,7 @@ where
             self.subject.data_bounds()
         };
         let view = ViewTransformer::new(data_bbox, screen);
+        dbg!(view);
         // We have all the necessary parts for constructing the graph. With that is a job of
         // seeing what we have and what don't.
         if let Some(grid) = configs.grid {
@@ -86,13 +87,13 @@ where
                     .build()
                     .expect("Default values set")
             });
-            grid.draw_in_view(rl, grid_conf, &view);
+            grid.draw_in_view(rl, &grid_conf, &view);
         }
 
         // We plot the subject inside the view.
-        configs.subject_configs.apply_theme(&configs.colorscheme);
+        // configs.subject_configs.apply_theme(&configs.colorscheme);
         self.subject
-            .draw_in_view(rl, configs.subject_configs, &view);
+            .draw_in_view(rl, &configs.subject_configs, &view);
         // Plot the axis and the story is the same. If we have an config given by the user
         // use it, else, defaults to graph configs + element defaults.
         if let Some(axis) = configs.axis {
@@ -102,7 +103,7 @@ where
                     .build()
                     .expect("Default values set"),
             );
-            axis.draw_in_view(rl, axis_conf, &view);
+            axis.draw_in_view(rl, &axis_conf, &view);
         }
     }
 }

@@ -212,13 +212,13 @@ impl ChartElement for KMeansPlot<'_> {
     fn draw_in_view(
         &self,
         rl: &mut raylib::prelude::RaylibDrawHandle,
-        configs: Self::Config,
+        configs: &Self::Config,
         view: &locus::plottable::view::ViewTransformer,
     ) {
         if self.kmeans.data.data.is_empty() {
             return;
         }
-        let colorscheme = configs.colorscheme.unwrap_or_default();
+        let colorscheme = configs.colorscheme.clone().unwrap_or_default();
         for (c_index, centroid) in &self.kmeans.centroids {
             let color = colorscheme.cycle[c_index % colorscheme.cycle.len()];
             for p_index in &centroid.friends {
@@ -226,7 +226,7 @@ impl ChartElement for KMeansPlot<'_> {
                 let p = view.to_screen(p);
                 p.plot(
                     rl,
-                    PointConfigBuilder::default()
+                    &PointConfigBuilder::default()
                         .shape((configs.data_shape)(&p, *p_index))
                         .color(color)
                         .size(configs.data_size)
@@ -237,7 +237,7 @@ impl ChartElement for KMeansPlot<'_> {
             let centroid = view.to_screen(&centroid.center);
             centroid.plot(
                 rl,
-                PointConfigBuilder::default()
+                &PointConfigBuilder::default()
                     .shape((configs.centroid_shape)(&centroid, *c_index))
                     .color(color)
                     .size(configs.centroid_size)
@@ -301,7 +301,7 @@ impl ChartElement for DynKMeansPlot<'_> {
     fn draw_in_view(
         &self,
         rl: &mut raylib::prelude::RaylibDrawHandle,
-        configs: Self::Config,
+        configs: &Self::Config,
         view: &locus::plottable::view::ViewTransformer,
     ) {
         if self.kmeans.data.data.is_empty() {
@@ -318,7 +318,7 @@ impl ChartElement for DynKMeansPlot<'_> {
                 let p = view.to_screen(p);
                 p.plot(
                     rl,
-                    PointConfigBuilder::default()
+                    &PointConfigBuilder::default()
                         .shape((configs.data_shape)(&p, *p_index))
                         .color(color)
                         .size(configs.data_size)
@@ -329,7 +329,7 @@ impl ChartElement for DynKMeansPlot<'_> {
             let centroid = view.to_screen(&centroid.center);
             centroid.plot(
                 rl,
-                PointConfigBuilder::default()
+                &PointConfigBuilder::default()
                     .shape((configs.centroid_shape)(&centroid, *c_index))
                     .color(color)
                     .size(configs.centroid_size)

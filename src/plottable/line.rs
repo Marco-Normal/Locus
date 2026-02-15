@@ -71,7 +71,7 @@ impl Default for LineConfig {
 
 impl PlotElement for Line {
     type Config = LineConfig;
-    fn plot(&self, rl: &mut RaylibDrawHandle, configs: Self::Config) {
+    fn plot(&self, rl: &mut RaylibDrawHandle, configs: &Self::Config) {
         if configs.arrow {
             rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
             let direction = Vector2 {
@@ -291,7 +291,7 @@ impl ChartElement for Axis {
     fn draw_in_view(
         &self,
         rl: &mut RaylibDrawHandle,
-        configs: Self::Config,
+        configs: &Self::Config,
         view: &ViewTransformer,
     ) {
         let (x_line, y_line) = {
@@ -318,22 +318,33 @@ impl ChartElement for Axis {
             arrow_width: configs.arrow_width,
         };
         if configs.x_axis {
-            x_line.plot(rl, line_config_x);
+            x_line.plot(rl, &line_config_x);
         }
         if configs.y_axis {
-            y_line.plot(rl, line_config_y);
+            y_line.plot(rl, &line_config_y);
         }
     }
 
     fn data_bounds(&self) -> BBox {
+        // BBox {
+        //     maximum: Point {
+        //         x: self.x_axis.from.x.max(self.x_axis.to.x),
+        //         y: self.y_axis.from.y.max(self.y_axis.to.y),
+        //     },
+        //     minimum: Point {
+        //         x: self.x_axis.from.x.min(self.x_axis.to.x),
+        //         y: self.y_axis.from.y.min(self.y_axis.to.y),
+        //     },
+        // }
+
         BBox {
             maximum: Point {
-                x: self.x_axis.from.x.max(self.x_axis.to.x),
-                y: self.y_axis.from.y.max(self.y_axis.to.y),
+                x: self.x_axis.to.x,
+                y: self.y_axis.to.y,
             },
             minimum: Point {
-                x: self.x_axis.from.x.min(self.x_axis.to.x),
-                y: self.y_axis.from.y.min(self.y_axis.to.y),
+                x: self.x_axis.from.x,
+                y: self.y_axis.from.y,
             },
         }
     }
@@ -473,24 +484,14 @@ impl GridLines {
         rl.draw_line_ex(start, end, config.thickness, color);
     }
 
-    fn get_spacing(&self, length: f32, separation: Separation, max_ticks: usize) -> f32 {
-        match separation {
-            Separation::Value(v) => v,
-            Separation::Auto => {
-                let rough_spacing = length / (max_ticks as f32).max(1.0);
-                nice_number(rough_spacing, true)
-            }
-        }
-    }
-
     fn plot_vertical(
         &self,
         rl: &mut RaylibDrawHandle,
         config: &GridLinesConfig,
-        sep: &Separation,
+        sep: Separation,
         view: &ViewTransformer,
     ) {
-        let spacing = self.get_spacing(self.axis.length_x_axis(), *sep, config.max_ticks);
+        let spacing = get_spacing(self.axis.length_x_axis(), sep, config.max_ticks);
         let (max, min) = (
             self.axis.x_axis.from.x.max(self.axis.x_axis.to.x),
             self.axis.x_axis.from.x.min(self.axis.x_axis.to.x),
@@ -509,10 +510,10 @@ impl GridLines {
         &self,
         rl: &mut RaylibDrawHandle,
         config: &GridLinesConfig,
-        sep: &Separation,
+        sep: Separation,
         view: &ViewTransformer,
     ) {
-        let spacing = self.get_spacing(self.axis.length_y_axis(), *sep, config.max_ticks);
+        let spacing = get_spacing(self.axis.length_y_axis(), sep, config.max_ticks);
         let (max, min) = (
             self.axis.y_axis.from.y.max(self.axis.y_axis.to.y),
             self.axis.y_axis.from.y.min(self.axis.y_axis.to.y),
@@ -528,28 +529,37 @@ impl GridLines {
     }
 }
 
+fn get_spacing(length: f32, separation: Separation, max_ticks: usize) -> f32 {
+    match separation {
+        Separation::Value(v) => v,
+        Separation::Auto => {
+            let rough_spacing = length / (max_ticks as f32).max(1.0);
+            nice_number(rough_spacing, true)
+        }
+    }
+}
 impl ChartElement for GridLines {
     type Config = GridLinesConfig;
 
     fn draw_in_view(
         &self,
         rl: &mut RaylibDrawHandle,
-        configs: Self::Config,
+        configs: &Self::Config,
         view: &ViewTransformer,
     ) {
         match &self.orientation {
             Orientation::Vertical { separation } => {
-                self.plot_vertical(rl, &configs, separation, view);
+                self.plot_vertical(rl, configs, *separation, view);
             }
             Orientation::Horizontal { separation } => {
-                self.plot_horizontal(rl, &configs, separation, view);
+                self.plot_horizontal(rl, configs, *separation, view);
             }
             Orientation::Both {
                 separation_x,
                 separation_y,
             } => {
-                self.plot_vertical(rl, &configs, separation_x, view);
-                self.plot_horizontal(rl, &configs, separation_y, view);
+                self.plot_vertical(rl, configs, *separation_x, view);
+                self.plot_horizontal(rl, configs, *separation_y, view);
             }
         }
     }

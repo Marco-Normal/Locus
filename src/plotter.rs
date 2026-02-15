@@ -10,7 +10,7 @@ use crate::plottable::view::{BBox, ViewTransformer};
 /// coordinates that they are in, with a possible offset.
 pub trait PlotElement {
     type Config;
-    fn plot(&self, rl: &mut RaylibDrawHandle, configs: Self::Config);
+    fn plot(&self, rl: &mut RaylibDrawHandle, configs: &Self::Config);
 }
 
 /// Main trait for elements that require some sort of translation between arbitrary coordinates
@@ -20,7 +20,7 @@ pub trait ChartElement {
     fn draw_in_view(
         &self,
         rl: &mut RaylibDrawHandle,
-        configs: Self::Config,
+        configs: &Self::Config,
         view: &ViewTransformer,
     );
     fn data_bounds(&self) -> BBox;

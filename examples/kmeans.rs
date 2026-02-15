@@ -4,23 +4,18 @@
 
 mod commom;
 use commom::{KMeans, KMeansPlotBuilder, MakeCirclesBuilder, make_circles};
-use derive_builder::Builder;
 use locus::{
     HEIGHT, WIDTH,
-    colorscheme::{DRACULA, GITHUB_DARK},
-    dataset::Dataset,
+    colorscheme::GITHUB_DARK,
     graph::{Graph, GraphBuilder},
     plottable::{
         line::{Axis, GridLines, Orientation, Separation},
-        point::{Point, PointConfigBuilder, Shape},
-        scatter::ScatterPlotBuilder,
-        view::{BBox, Viewport},
+        view::Viewport,
     },
     plotter::PlotElement,
 };
-use rand::Rng;
 use raylib::prelude::*;
-use std::{f32, ops::Range};
+use std::f32;
 
 const MAX_COLOR: Color = Color::RED;
 const MIN_COLOR: Color = Color::BLUE;
@@ -63,7 +58,7 @@ fn main() {
         let mut d = rl.begin_drawing(&rl_thread);
         graph.plot(
             &mut d,
-            GraphBuilder::default()
+            &GraphBuilder::default()
                 .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
                 .grid(grid_lines)
                 .axis(axis)
