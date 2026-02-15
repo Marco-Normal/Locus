@@ -37,18 +37,39 @@ use crate::plottable::point::Point;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BBox {
-    pub maximum: Point,
     pub minimum: Point,
+    pub maximum: Point,
 }
 
 impl BBox {
-    pub fn new(maximum: impl Into<Point>, minimum: impl Into<Point>) -> Self {
+    pub fn new(a: impl Into<Point>, b: impl Into<Point>) -> Self {
+        let a: Point = a.into();
+        let b: Point = b.into();
+        let min_x = a.x.min(b.x);
+        let min_y = a.y.min(b.y);
+        let max_x = a.x.max(b.x);
+        let max_y = a.y.max(b.y);
         Self {
-            maximum: maximum.into(),
-            minimum: minimum.into(),
+            minimum: (min_x, min_y).into(),
+            maximum: (max_x, max_y).into(),
         }
     }
-
+    /// Creates a bounding box assuming `minimum` and `maximum` already satisfy invariants.
+    /// Debug-asserts the invariant to catch mistakes early.
+    #[must_use]
+    pub fn from_min_max(minimum: impl Into<Point>, maximum: impl Into<Point>) -> Self {
+        let minimum: Point = minimum.into();
+        let maximum: Point = maximum.into();
+        debug_assert!(
+            minimum.x <= maximum.x,
+            "BBox invariant violated: min.x > max.x"
+        );
+        debug_assert!(
+            minimum.y <= maximum.y,
+            "BBox invariant violated: min.y > max.y"
+        );
+        Self { minimum, maximum }
+    }
     pub fn width(&self) -> f32 {
         self.maximum.x - self.minimum.x
     }
@@ -132,33 +153,31 @@ impl Viewport {
     }
 
     /// Outer rectangle in screen coordinates.
+    /// NOTE: this returns a *numeric* bounding box where `minimum.y <= maximum.y`.
+    /// In Raylib screen space that means:
+    /// - `minimum` is the top-left corner
+    /// - `maximum` is the bottom-right corner
     #[inline]
     pub fn outer_bbox(&self) -> BBox {
-        BBox::new(
-            (self.x + self.width, self.y + self.height),
-            (self.x, self.y),
-        )
+        let minimum = (self.x, self.y);
+        let maximum = (self.x + self.width, self.y + self.height);
+        BBox::new(minimum, maximum)
     }
 
     /// Inner plotting area (after margins), in screen coordinates.
+    ///
+    /// Note: this returns a *numeric* bounding box where `minimum.y <= maximum.y`.
+    /// In Raylib screen space that means:
+    /// - `minimum` is the top-left corner
+    /// - `maximum` is the bottom-right corner
     #[inline]
     pub fn inner_bbox(&self) -> BBox {
-        // minimum must be top-left; maximum must be bottom-right
-        // let minimum = (self.x + self.margins.left, self.y + self.margins.top);
-        // let maximum = (
-        //     self.x + self.width - self.margins.right,
-        //     self.y + self.height - self.margins.bottom,
-        // );
-
-        let minimum = (
-            self.x + self.margins.left,
-            self.y + self.height - self.margins.bottom,
-        );
+        let minimum = (self.x + self.margins.left, self.y + self.margins.top);
         let maximum = (
             self.x + self.width - self.margins.right,
-            self.y + self.margins.top,
+            self.y + self.height - self.margins.bottom,
         );
-        BBox::new(maximum, minimum)
+        BBox::new(minimum, maximum)
     }
 }
 
@@ -177,10 +196,6 @@ pub struct ViewTransformer {
 
 impl ViewTransformer {
     pub fn new(data_bounds: BBox, screen_bounds: Viewport) -> Self {
-        let sb = screen_bounds.inner_bbox();
-        // debug_assert!(sb.minimum.x <= sb.maximum.x, "screen bbox has inverted X");
-        // debug_assert!(sb.minimum.y <= sb.maximum.y, "screen bbox has inverted Y");
-
         Self {
             data_bounds,
             screen_bounds,
@@ -198,14 +213,47 @@ impl ViewTransformer {
             screen_bounds.maximum.x,
         );
 
+        // Explicit Y inversion:
+        // data min (bottom) -> screen max (bottom)
+        // data max (top)    -> screen min (top)
         let y = map_val(
             point.y,
             self.data_bounds.minimum.y,
             self.data_bounds.maximum.y,
-            screen_bounds.minimum.y,
             screen_bounds.maximum.y,
+            screen_bounds.minimum.y,
         );
 
         Point { x, y }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_approx(a: f32, b: f32) {
+        assert!((a - b).abs() < 1e-5, "expected {b}, got {a}");
+    }
+
+    #[test]
+    fn to_screen_flips_y_cartesian_to_raylib() {
+        let data = BBox::new((0.0, 0.0), (10.0, 10.0));
+        let viewport = Viewport::new(0.0, 0.0, 100.0, 100.0);
+        let view = ViewTransformer::new(data, viewport);
+
+        // data bottom-left -> screen bottom-left
+        let p = view.to_screen(&Point::new(0.0, 0.0));
+        assert_approx(p.x, 0.0);
+        assert_approx(p.y, 100.0);
+
+        // data top-left -> screen top-left
+        let p = view.to_screen(&Point::new(0.0, 10.0));
+        assert_approx(p.x, 0.0);
+        assert_approx(p.y, 0.0);
+
+        // data bottom-right -> screen bottom-right
+        let p = view.to_screen(&Point::new(10.0, 0.0));
+        assert_approx(p.x, 100.0);
+        assert_approx(p.y, 100.0);
     }
 }

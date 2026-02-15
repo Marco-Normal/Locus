@@ -54,18 +54,17 @@ fn main() {
     let kmeans_plot = kmeans.plot();
 
     let graph = Graph::new(kmeans_plot);
+    let graph_config: locus::graph::GraphConfig<commom::KMeansPlot<'_>> = GraphBuilder::default()
+        .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
+        .grid(grid_lines)
+        .axis(axis)
+        .subject_configs(KMeansPlotBuilder::default().build().unwrap())
+        .colorscheme(GITHUB_DARK.clone())
+        .build()
+        .unwrap()
+        .resolve_theme();
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&rl_thread);
-        graph.plot(
-            &mut d,
-            &GraphBuilder::default()
-                .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
-                .grid(grid_lines)
-                .axis(axis)
-                .subject_configs(KMeansPlotBuilder::default().build().unwrap())
-                .colorscheme(GITHUB_DARK.clone())
-                .build()
-                .unwrap(),
-        );
+        graph.plot(&mut d, &graph_config);
     }
 }

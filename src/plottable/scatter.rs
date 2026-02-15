@@ -104,7 +104,7 @@ impl ChartElement for ScatterPlot<'_> {
     fn draw_in_view(
         &self,
         rl: &mut raylib::prelude::RaylibDrawHandle,
-        configs: &Self::Config,
+        configs: &ScatterPlotConfig,
         view: &ViewTransformer,
     ) {
         self.data.data.iter().enumerate().for_each(|(i, p)| {
@@ -164,7 +164,7 @@ impl Themable for ScatterPlotConfig {
             None => {
                 self.color = Some(Strategy::Fixed(
                     scheme.cycle.first().copied().unwrap_or(Color::BLACK),
-                ));
+                ))
             }
         }
     }

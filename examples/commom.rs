@@ -218,7 +218,10 @@ impl ChartElement for KMeansPlot<'_> {
         if self.kmeans.data.data.is_empty() {
             return;
         }
-        let colorscheme = configs.colorscheme.clone().unwrap_or_default();
+        let colorscheme = match &configs.colorscheme {
+            Some(c) => c,
+            None => &Colorscheme::default(),
+        };
         for (c_index, centroid) in &self.kmeans.centroids {
             let color = colorscheme.cycle[c_index % colorscheme.cycle.len()];
             for p_index in &centroid.friends {
@@ -295,63 +298,63 @@ impl<'a> From<&'a DynKMeansPlot<'a>> for KMeansPlot<'a> {
     }
 }
 
-impl ChartElement for DynKMeansPlot<'_> {
-    type Config = KMeansConfig;
+// impl ChartElement for DynKMeansPlot<'_> {
+//     type Config = KMeansConfig;
 
-    fn draw_in_view(
-        &self,
-        rl: &mut raylib::prelude::RaylibDrawHandle,
-        configs: &Self::Config,
-        view: &locus::plottable::view::ViewTransformer,
-    ) {
-        if self.kmeans.data.data.is_empty() {
-            return;
-        }
+//     fn draw_in_view(
+//         &self,
+//         rl: &mut raylib::prelude::RaylibDrawHandle,
+//         configs: Self::Config,
+//         view: &locus::plottable::view::ViewTransformer,
+//     ) {
+//         if self.kmeans.data.data.is_empty() {
+//             return;
+//         }
 
-        // if rl.is_key_pressed(KeyboardKey::KEY_N) {
-        //     self.kmeans.step();
-        // }
-        for (c_index, centroid) in &self.kmeans.centroids {
-            let color = COLORS[c_index % COLORS.len()];
-            for p_index in &centroid.friends {
-                let p = &self.kmeans.data.data[*p_index];
-                let p = view.to_screen(p);
-                p.plot(
-                    rl,
-                    &PointConfigBuilder::default()
-                        .shape((configs.data_shape)(&p, *p_index))
-                        .color(color)
-                        .size(configs.data_size)
-                        .build()
-                        .unwrap(),
-                );
-            }
-            let centroid = view.to_screen(&centroid.center);
-            centroid.plot(
-                rl,
-                &PointConfigBuilder::default()
-                    .shape((configs.centroid_shape)(&centroid, *c_index))
-                    .color(color)
-                    .size(configs.centroid_size)
-                    .build()
-                    .unwrap(),
-            );
-        }
-    }
+//         // if rl.is_key_pressed(KeyboardKey::KEY_N) {
+//         //     self.kmeans.step();
+//         // }
+//         for (c_index, centroid) in &self.kmeans.centroids {
+//             let color = COLORS[c_index % COLORS.len()];
+//             for p_index in &centroid.friends {
+//                 let p = &self.kmeans.data.data[*p_index];
+//                 let p = view.to_screen(p);
+//                 p.plot(
+//                     rl,
+//                     PointConfigBuilder::default()
+//                         .shape((configs.data_shape)(&p, *p_index))
+//                         .color(color)
+//                         .size(configs.data_size)
+//                         .build()
+//                         .unwrap(),
+//                 );
+//             }
+//             let centroid = view.to_screen(&centroid.center);
+//             centroid.plot(
+//                 rl,
+//                 PointConfigBuilder::default()
+//                     .shape((configs.centroid_shape)(&centroid, *c_index))
+//                     .color(color)
+//                     .size(configs.centroid_size)
+//                     .build()
+//                     .unwrap(),
+//             );
+//         }
+//     }
 
-    fn data_bounds(&self) -> BBox {
-        BBox {
-            minimum: Point {
-                x: self.kmeans.data.range_min.x,
-                y: self.kmeans.data.range_min.y,
-            },
-            maximum: Point {
-                x: self.kmeans.data.range_max.x,
-                y: self.kmeans.data.range_max.y,
-            },
-        }
-    }
-}
+//     fn data_bounds(&self) -> BBox {
+//         BBox {
+//             minimum: Point {
+//                 x: self.kmeans.data.range_min.x,
+//                 y: self.kmeans.data.range_min.y,
+//             },
+//             maximum: Point {
+//                 x: self.kmeans.data.range_max.x,
+//                 y: self.kmeans.data.range_max.y,
+//             },
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, Builder)]
 #[builder(pattern = "owned")]

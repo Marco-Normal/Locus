@@ -41,7 +41,7 @@ impl Line {
 pub struct LineConfig {
     thickness: f32,
     color: Color,
-    arrow: bool,
+    arrow: Visibility,
     arrow_length: f32,
     arrow_width: f32,
 }
@@ -52,51 +52,44 @@ impl Default for LineConfig {
         Self {
             thickness,
             color: Color::WHITE,
-            arrow: true,
+            arrow: Visibility::Visible,
             arrow_length: 4.0 * thickness,
             arrow_width: 3.5 * thickness,
         }
     }
 }
 
-// impl PlotConfig for LineConfig {
-//     fn with_bounds(&mut self, by: BBox) {
-//         self.bbox = by;
-//     }
-
-//     fn with_offset(&mut self, by: Offsets) {
-//         self.offsets = by;
-//     }
-// }
-
 impl PlotElement for Line {
     type Config = LineConfig;
-    fn plot(&self, rl: &mut RaylibDrawHandle, configs: &Self::Config) {
-        if configs.arrow {
-            rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
-            let direction = Vector2 {
-                x: self.to.x - self.from.x,
-                y: self.to.y - self.from.y,
-            };
-            let length = direction.length();
-            if length <= 0.0 {
-                return;
+    fn plot(&self, rl: &mut RaylibDrawHandle, configs: &LineConfig) {
+        match configs.arrow {
+            Visibility::Visible => {
+                rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
+                let direction = Vector2 {
+                    x: self.to.x - self.from.x,
+                    y: self.to.y - self.from.y,
+                };
+                let length = direction.length();
+                if length <= 0.0 {
+                    return;
+                }
+                let direction_norm = direction.normalized();
+                let vdx = -direction_norm.y;
+                let vdy = direction_norm.x;
+                let p1 = Vector2::new(
+                    self.to.x - configs.arrow_length * direction_norm.x + configs.arrow_width * vdx,
+                    self.to.y - configs.arrow_length * direction_norm.y + configs.arrow_width * vdy,
+                );
+                let p2 = Vector2::new(
+                    self.to.x - configs.arrow_length * direction_norm.x - configs.arrow_width * vdx,
+                    self.to.y - configs.arrow_length * direction_norm.y - configs.arrow_width * vdy,
+                );
+                let tail = Vector2::new(self.to.x, self.to.y);
+                rl.draw_triangle(p2, p1, tail, configs.color);
             }
-            let direction_norm = direction.normalized();
-            let vdx = -direction_norm.y;
-            let vdy = direction_norm.x;
-            let p1 = Vector2::new(
-                self.to.x - configs.arrow_length * direction_norm.x + configs.arrow_width * vdx,
-                self.to.y - configs.arrow_length * direction_norm.y + configs.arrow_width * vdy,
-            );
-            let p2 = Vector2::new(
-                self.to.x - configs.arrow_length * direction_norm.x - configs.arrow_width * vdx,
-                self.to.y - configs.arrow_length * direction_norm.y - configs.arrow_width * vdy,
-            );
-            let tail = Vector2::new(self.to.x, self.to.y);
-            rl.draw_triangle(p2, p1, tail, configs.color);
-        } else {
-            rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
+            Visibility::Invisible => {
+                rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
+            }
         }
     }
 }
@@ -189,15 +182,26 @@ impl From<(Range<f32>, Range<f32>)> for Axis {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum Visibility {
+    Visible,
+    Invisible,
+}
+
 /// Configs for the axis. Arrows are default to True.
 #[derive(Debug, Clone, Copy, Builder)]
 #[builder(pattern = "owned")]
 #[builder(default)]
 pub struct AxisConfigs {
-    arrow_x: bool,
-    arrow_y: bool,
-    x_axis: bool,
-    y_axis: bool,
+    #[builder(private)]
+    x_arrow: Visibility,
+    #[builder(private)]
+    y_arrow: Visibility,
+    #[builder(private)]
+    x_axis: Visibility,
+    #[builder(private)]
+    y_axis: Visibility,
     arrow_length: f32,
     arrow_width: f32,
     color: Color,
@@ -208,8 +212,8 @@ impl AxisConfigsBuilder {
     #[must_use]
     pub fn strip_both_arrows(self) -> Self {
         Self {
-            arrow_x: Some(false),
-            arrow_y: Some(false),
+            x_arrow: Some(Visibility::Invisible),
+            y_arrow: Some(Visibility::Invisible),
             ..self
         }
     }
@@ -217,7 +221,7 @@ impl AxisConfigsBuilder {
     #[must_use]
     pub fn strip_y_arrow(self) -> Self {
         Self {
-            arrow_y: Some(false),
+            y_arrow: Some(Visibility::Invisible),
             ..self
         }
     }
@@ -225,32 +229,38 @@ impl AxisConfigsBuilder {
     #[must_use]
     pub fn strip_x_arrow(self) -> Self {
         Self {
-            arrow_x: Some(false),
+            x_arrow: Some(Visibility::Invisible),
             ..self
         }
     }
-
+    /// Automatically strip arrows, because there is no axis for arrows to go into
     #[must_use]
     pub fn strip_both_axis(self) -> Self {
         Self {
-            x_axis: Some(false),
-            y_axis: Some(false),
+            x_axis: Some(Visibility::Invisible),
+            y_axis: Some(Visibility::Invisible),
+            x_arrow: Some(Visibility::Invisible),
+            y_arrow: Some(Visibility::Invisible),
             ..self
         }
     }
 
+    /// Automatically strip arrows, because there is no axis for arrows to go into
     #[must_use]
     pub fn strip_y_axis(self) -> Self {
         Self {
-            y_axis: Some(false),
+            y_axis: Some(Visibility::Invisible),
+            y_arrow: Some(Visibility::Invisible),
             ..self
         }
     }
 
+    /// Automatically strip arrows, because there is no axis for arrows to go into
     #[must_use]
     pub fn strip_x_axis(self) -> Self {
         Self {
-            x_axis: Some(false),
+            x_axis: Some(Visibility::Invisible),
+            x_arrow: Some(Visibility::Invisible),
             ..self
         }
     }
@@ -260,10 +270,10 @@ impl Default for AxisConfigs {
     fn default() -> Self {
         let thickness = 2.0;
         Self {
-            arrow_x: true,
-            arrow_y: true,
-            x_axis: true,
-            y_axis: true,
+            x_arrow: Visibility::Visible,
+            y_arrow: Visibility::Visible,
+            x_axis: Visibility::Visible,
+            y_axis: Visibility::Visible,
             arrow_length: 4.0 * thickness,
             color: Color::WHITE,
             thickness,
@@ -271,19 +281,6 @@ impl Default for AxisConfigs {
         }
     }
 }
-
-// impl From<AxisConfigs> for LineConfig {
-//     fn from(value: AxisConfigs) -> Self {
-//         Self {
-//             thickness: value.thickness,
-//             color: value.color,
-//             arrow: value.arrows,
-//             arrow_length: value.arrow_length,
-//             arrow_width: value.arrow_width,
-//             offsets: value.offsets,
-//         }
-//     }
-// }
 
 impl ChartElement for Axis {
     type Config = AxisConfigs;
@@ -305,7 +302,7 @@ impl ChartElement for Axis {
         let line_config_x = LineConfig {
             thickness: configs.thickness,
             color: configs.color,
-            arrow: configs.arrow_x,
+            arrow: configs.x_arrow,
             arrow_length: configs.arrow_length,
             arrow_width: configs.arrow_width,
         };
@@ -313,38 +310,33 @@ impl ChartElement for Axis {
         let line_config_y = LineConfig {
             thickness: configs.thickness,
             color: configs.color,
-            arrow: configs.arrow_y,
+            arrow: configs.y_arrow,
             arrow_length: configs.arrow_length,
             arrow_width: configs.arrow_width,
         };
-        if configs.x_axis {
-            x_line.plot(rl, &line_config_x);
+        match configs.x_axis {
+            Visibility::Visible => {
+                x_line.plot(rl, &line_config_x);
+            }
+            Visibility::Invisible => (),
         }
-        if configs.y_axis {
-            y_line.plot(rl, &line_config_y);
+        match configs.y_axis {
+            Visibility::Visible => {
+                y_line.plot(rl, &line_config_y);
+            }
+            Visibility::Invisible => (),
         }
     }
 
     fn data_bounds(&self) -> BBox {
-        // BBox {
-        //     maximum: Point {
-        //         x: self.x_axis.from.x.max(self.x_axis.to.x),
-        //         y: self.y_axis.from.y.max(self.y_axis.to.y),
-        //     },
-        //     minimum: Point {
-        //         x: self.x_axis.from.x.min(self.x_axis.to.x),
-        //         y: self.y_axis.from.y.min(self.y_axis.to.y),
-        //     },
-        // }
-
         BBox {
             maximum: Point {
-                x: self.x_axis.to.x,
-                y: self.y_axis.to.y,
+                x: self.x_axis.from.x.max(self.x_axis.to.x),
+                y: self.y_axis.from.y.max(self.y_axis.to.y),
             },
             minimum: Point {
-                x: self.x_axis.from.x,
-                y: self.y_axis.from.y,
+                x: self.x_axis.from.x.min(self.x_axis.to.x),
+                y: self.y_axis.from.y.min(self.y_axis.to.y),
             },
         }
     }
@@ -544,7 +536,7 @@ impl ChartElement for GridLines {
     fn draw_in_view(
         &self,
         rl: &mut RaylibDrawHandle,
-        configs: &Self::Config,
+        configs: &GridLinesConfig,
         view: &ViewTransformer,
     ) {
         match &self.orientation {

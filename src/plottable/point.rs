@@ -49,7 +49,7 @@ impl Default for PointConfig {
 impl PlotElement for Point {
     type Config = PointConfig;
 
-    fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, configs: &Self::Config) {
+    fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, configs: &PointConfig) {
         let x = self.x;
         let y = self.y;
         match configs.shape {

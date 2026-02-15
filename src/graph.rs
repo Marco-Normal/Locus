@@ -57,13 +57,56 @@ where
     colorscheme: Colorscheme,
 }
 
+impl<T> GraphConfig<T>
+where
+    T: ChartElement,
+    <T as ChartElement>::Config: Default + Themable,
+{
+    /// Resolves theme-driven defaults (subject + axis/grid configs) once.
+    /// Call this after `build()` and reuse the returned config across frames.
+    #[must_use]
+    pub fn resolve_theme(mut self) -> Self {
+        // Subject config: theme-driven defaults (e.g. ScatterPlot default color)
+        self.subject_configs.apply_theme(&self.colorscheme);
+        // Grid config: if enabled and missing config, create a themed default; otherwise theme it.
+        if self.grid.is_some() {
+            match &mut self.grid_configs {
+                Some(cfg) => cfg.apply_theme(&self.colorscheme),
+                None => {
+                    self.grid_configs = Some(
+                        GridLinesConfigBuilder::default()
+                            .color(self.colorscheme.grid)
+                            .build()
+                            .expect("Default values set"),
+                    );
+                }
+            }
+        }
+        // Axis config: if enabled and missing config, create a themed default; otherwise theme it.
+        if self.axis.is_some() {
+            match &mut self.axis_configs {
+                Some(cfg) => cfg.apply_theme(&self.colorscheme),
+                None => {
+                    self.axis_configs = Some(
+                        AxisConfigsBuilder::default()
+                            .color(self.colorscheme.axis)
+                            .build()
+                            .expect("Default values set"),
+                    );
+                }
+            }
+        }
+        self
+    }
+}
+
 impl<T: ChartElement> PlotElement for Graph<T>
 where
     <T as ChartElement>::Config: Default + Themable,
 {
     type Config = GraphConfig<T>;
 
-    fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, configs: &Self::Config) {
+    fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, mut configs: &GraphConfig<T>) {
         // We need to construct the view where the graph elements will live.
         // As such, we need to provide the screen-bounds, given by the configs
         // and the data-bounds, given by the `subject.data_bounds()`
@@ -75,12 +118,12 @@ where
             self.subject.data_bounds()
         };
         let view = ViewTransformer::new(data_bbox, screen);
-        dbg!(view);
         // We have all the necessary parts for constructing the graph. With that is a job of
         // seeing what we have and what don't.
         if let Some(grid) = configs.grid {
             // If the grid has a config, use it, else, defaults to configs from the graph + defaults
             // from element.
+            // NOTE: Should always unwrap with a configuration, if the user applied theming.
             let grid_conf = configs.grid_configs.unwrap_or({
                 GridLinesConfigBuilder::default()
                     .color(configs.colorscheme.grid)

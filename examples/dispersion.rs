@@ -11,7 +11,7 @@ use locus::{
     colorscheme::GITHUB_DARK,
     graph::{Graph, GraphBuilder},
     plottable::{
-        line::{Axis, AxisConfigsBuilder, GridLines, Orientation},
+        line::{Axis, AxisConfigsBuilder},
         scatter::{ScatterPlot, ScatterPlotBuilder},
         view::Viewport,
     },
@@ -66,21 +66,21 @@ fn main() {
 
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&rl_thread);
-        d.clear_background(Color::RAYWHITE);
+        d.clear_background(colorscheme.background);
         g1.plot(
             &mut d,
-            &GraphBuilder::default()
+            GraphBuilder::default()
                 .viewport(Viewport::new(
                     10.0,
                     10.0,
-                    (WIDTH - 15) as f32,
+                    (WIDTH / 2) as f32,
                     (HEIGHT - 15) as f32,
                 ))
                 .colorscheme(colorscheme.clone())
                 .axis(axis)
                 .axis_configs(
                     AxisConfigsBuilder::default()
-                        .x_axis(true)
+                        .strip_x_arrow()
                         .color(colorscheme.axis)
                         .build()
                         .unwrap(),
@@ -95,26 +95,26 @@ fn main() {
                 .build()
                 .unwrap(),
         );
-        // g2.plot(
-        //     &mut d,
-        //     &GraphBuilder::default()
-        //         .viewport(Viewport::new(
-        //             (WIDTH / 2) as f32,
-        //             10.0,
-        //             (WIDTH / 2) as f32,
-        //             (HEIGHT - 15) as f32,
-        //         ))
-        //         .colorscheme(colorscheme.clone())
-        //         .axis(axis_d2)
-        //         .subject_configs(
-        //             ScatterPlotBuilder::default()
-        //                 .fixed_color(Color::BLUE)
-        //                 .fixed_size(3.0)
-        //                 .build()
-        //                 .unwrap(),
-        //         )
-        //         .build()
-        //         .unwrap(),
-        // );
+        g2.plot(
+            &mut d,
+            GraphBuilder::default()
+                .viewport(Viewport::new(
+                    (WIDTH / 2) as f32,
+                    10.0,
+                    (WIDTH / 2) as f32,
+                    (HEIGHT - 15) as f32,
+                ))
+                .colorscheme(colorscheme.clone())
+                .axis(axis_d2)
+                .subject_configs(
+                    ScatterPlotBuilder::default()
+                        .fixed_color(Color::BLUE)
+                        .fixed_size(3.0)
+                        .build()
+                        .unwrap(),
+                )
+                .build()
+                .unwrap(),
+        );
     }
 }
