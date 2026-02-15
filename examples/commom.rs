@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
+#![no_main]
 use derive_builder::Builder;
 use rand::prelude::*;
 use raylib::math::Vector2;
@@ -12,9 +13,9 @@ use locus::{
     colorscheme::{Colorscheme, Themable},
     dataset::Dataset,
     plottable::{
-        point::{Point, PointConfigBuilder, Shape},
+        point::{Datapoint, PointConfigBuilder, Shape},
         scatter::DynamicShape,
-        view::BBox,
+        view::DataBBox,
     },
     plotter::{ChartElement, PlotElement},
 };
@@ -29,7 +30,7 @@ const COLORS: &[raylib::prelude::Color] = &[
 ];
 #[derive(Debug)]
 struct Centroid {
-    center: Point,
+    center: Datapoint,
     friends: Vec<usize>,
 }
 #[derive(Debug)]
@@ -61,7 +62,7 @@ impl<'a> KMeans<'a> {
     pub fn initialize(&mut self) {
         let mut rng = rand::rng();
         for k in 0..self.k {
-            let center = Point::new(
+            let center = Datapoint::new(
                 rng.random_range(self.data.range_min.x..self.data.range_max.x),
                 rng.random_range(self.data.range_min.y..self.data.range_max.y),
             );
@@ -131,7 +132,7 @@ impl<'a> KMeans<'a> {
             }
             avg_x /= points_in_cluster.len() as f32;
             avg_y /= points_in_cluster.len() as f32;
-            let dist = Vector2 { x: avg_x, y: avg_y }.distance_to(cluster.center);
+            let dist = Vector2 { x: avg_x, y: avg_y }.distance_to(*cluster.center);
             if dist > biggest_distance {
                 biggest_distance = dist;
             }
@@ -226,8 +227,7 @@ impl ChartElement for KMeansPlot<'_> {
             let color = colorscheme.cycle[c_index % colorscheme.cycle.len()];
             for p_index in &centroid.friends {
                 let p = &self.kmeans.data.data[*p_index];
-                let p = view.to_screen(p);
-                p.plot(
+                view.to_screen(p).plot(
                     rl,
                     &PointConfigBuilder::default()
                         .shape((configs.data_shape)(&p, *p_index))
@@ -237,11 +237,10 @@ impl ChartElement for KMeansPlot<'_> {
                         .unwrap(),
                 );
             }
-            let centroid = view.to_screen(&centroid.center);
-            centroid.plot(
+            view.to_screen(&centroid.center).plot(
                 rl,
                 &PointConfigBuilder::default()
-                    .shape((configs.centroid_shape)(&centroid, *c_index))
+                    .shape((configs.centroid_shape)(&centroid.center, *c_index))
                     .color(color)
                     .size(configs.centroid_size)
                     .build()
@@ -250,16 +249,10 @@ impl ChartElement for KMeansPlot<'_> {
         }
     }
 
-    fn data_bounds(&self) -> BBox {
-        BBox {
-            minimum: Point {
-                x: self.kmeans.data.range_min.x,
-                y: self.kmeans.data.range_min.y,
-            },
-            maximum: Point {
-                x: self.kmeans.data.range_max.x,
-                y: self.kmeans.data.range_max.y,
-            },
+    fn data_bounds(&self) -> DataBBox {
+        DataBBox {
+            minimum: Datapoint((self.kmeans.data.range_min.x, self.kmeans.data.range_min.y).into()),
+            maximum: Datapoint((self.kmeans.data.range_max.x, self.kmeans.data.range_max.y).into()),
         }
     }
 }
@@ -404,24 +397,14 @@ pub fn make_circles(config: MakeCirclesConfig) -> Dataset {
     }
     // let (mut min_x, mut max_x) = (f32::INFINITY, f32::NEG_INFINITY);
     // let (mut min_y, mut max_y) = (f32::INFINITY, f32::NEG_INFINITY);
-    let mut data: Vec<Point> = Vec::with_capacity(config.n_samples);
+    let mut data: Vec<Datapoint> = Vec::with_capacity(config.n_samples);
     for i in 0..config.n_samples {
         let r = radius[i % config.n_circles] * f32::sqrt(rng.random::<f32>());
         let theta = rng.random::<f32>() * 2.0 * std::f32::consts::PI;
         let px = centers[i % config.n_circles].x + r * f32::cos(theta);
 
         let py = centers[i % config.n_circles].y + r * f32::sin(theta);
-        // if px >= max_x {
-        //     max_x = px;
-        // } else if px <= min_x {
-        //     min_x = px;
-        // }
-        // if py >= max_y {
-        //     max_y = py;
-        // } else if py <= min_y {
-        //     min_y = py;
-        // }
-        data.push(Point { x: px, y: py });
+        data.push(Datapoint::new(px, py));
     }
     Dataset::new(data)
 }
@@ -464,7 +447,7 @@ impl Default for MakeMoonsConfig {
 }
 pub fn make_moons(config: MakeMoonsConfig) -> Dataset {
     let mut rng = rand::rng();
-    let mut data: Vec<Point> = Vec::with_capacity(config.n_samples);
+    let mut data: Vec<Datapoint> = Vec::with_capacity(config.n_samples);
     let mut centers: Vec<Vector2> = Vec::with_capacity(config.n_moons);
     let mut radius: Vec<f32> = Vec::with_capacity(config.n_moons);
     // let (mut min_x, mut max_x) = (f32::INFINITY, f32::NEG_INFINITY);
@@ -490,17 +473,7 @@ pub fn make_moons(config: MakeMoonsConfig) -> Dataset {
             x += rng.random_range(-config.scale / 2.0..config.scale / 2.0);
             y += rng.random_range(-config.scale / 2.0..config.scale / 2.0);
         }
-        data.push(Point { x, y });
-        // if x >= max_x {
-        //     max_x = x;
-        // } else if x <= min_x {
-        //     min_x = x;
-        // }
-        // if y >= max_y {
-        //     max_y = y;
-        // } else if y <= min_y {
-        //     min_y = y;
-        // }
+        data.push(Datapoint::new(x, y));
     }
     Dataset::new(data)
 }

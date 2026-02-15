@@ -1,65 +1,43 @@
-use crate::plottable::point::Point;
+use std::ops::Deref;
 
-// #[derive(Default, Clone, Copy, Debug)]
-// pub struct Offsets {
-//     pub(crate) offset_x: f32,
-//     pub(crate) offset_y: f32,
-// }
+use raylib::math::Vector2;
 
-// impl Offsets {
-//     pub fn new(offset_x: f32, offset_y: f32) -> Self {
-//         Self { offset_x, offset_y }
-//     }
-//     pub fn offset_point(&self, point: &Point) -> Point {
-//         Point {
-//             x: point.x + self.offset_x,
-//             y: point.y + self.offset_y,
-//         }
-//     }
-// }
-
-// impl From<(f32, f32)> for Offsets {
-//     fn from(value: (f32, f32)) -> Self {
-//         Self {
-//             offset_x: value.0,
-//             offset_y: value.1,
-//         }
-//     }
-// }
-// impl From<raylib::math::Vector2> for Offsets {
-//     fn from(value: Vector2) -> Self {
-//         Self {
-//             offset_x: value.x,
-//             offset_y: value.y,
-//         }
-//     }
-// }
+use crate::{
+    HEIGHT, WIDTH,
+    plottable::point::{Datapoint, Screenpoint},
+};
 
 #[derive(Debug, Clone, Copy)]
-pub struct BBox {
-    pub minimum: Point,
-    pub maximum: Point,
+pub struct BBox<P> {
+    pub minimum: P,
+    pub maximum: P,
 }
 
-impl BBox {
-    pub fn new(a: impl Into<Point>, b: impl Into<Point>) -> Self {
-        let a: Point = a.into();
-        let b: Point = b.into();
+pub type ScreenBBox = BBox<Screenpoint>;
+pub type DataBBox = BBox<Datapoint>;
+
+impl<P> BBox<P>
+where
+    P: Copy + Deref<Target = Vector2> + From<Vector2>,
+{
+    pub fn new(a: impl Into<P>, b: impl Into<P>) -> Self {
+        let a: P = a.into();
+        let b: P = b.into();
         let min_x = a.x.min(b.x);
         let min_y = a.y.min(b.y);
         let max_x = a.x.max(b.x);
         let max_y = a.y.max(b.y);
         Self {
-            minimum: (min_x, min_y).into(),
-            maximum: (max_x, max_y).into(),
+            minimum: Vector2::new(min_x, min_y).into(),
+            maximum: Vector2::new(max_x, max_y).into(),
         }
     }
     /// Creates a bounding box assuming `minimum` and `maximum` already satisfy invariants.
     /// Debug-asserts the invariant to catch mistakes early.
     #[must_use]
-    pub fn from_min_max(minimum: impl Into<Point>, maximum: impl Into<Point>) -> Self {
-        let minimum: Point = minimum.into();
-        let maximum: Point = maximum.into();
+    pub fn from_min_max(minimum: impl Into<P>, maximum: impl Into<P>) -> Self {
+        let minimum: P = minimum.into();
+        let maximum: P = maximum.into();
         debug_assert!(
             minimum.x <= maximum.x,
             "BBox invariant violated: min.x > max.x"
@@ -78,27 +56,6 @@ impl BBox {
         self.maximum.y - self.minimum.y
     }
 }
-
-// impl Default for BBox {
-//     fn default() -> Self {
-//         Self {
-//             minimum: Point { x: 0.0, y: 0.0 },
-//             maximum: Point {
-//                 x: crate::WIDTH as f32,
-//                 y: crate::HEIGHT as f32,
-//             },
-//         }
-//     }
-// }
-
-// impl From<(Point, Point)> for BBox {
-//     fn from(value: (Point, Point)) -> Self {
-//         Self {
-//             minimum: value.0,
-//             maximum: value.1,
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Margins {
@@ -120,13 +77,25 @@ impl Margins {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct Viewport {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) width: f32,
+    pub(crate) height: f32,
     margins: Margins,
+}
+
+impl Default for Viewport {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            width: WIDTH as f32,
+            height: HEIGHT as f32,
+            margins: Margins::default(),
+        }
+    }
 }
 
 impl Viewport {
@@ -158,7 +127,7 @@ impl Viewport {
     /// - `minimum` is the top-left corner
     /// - `maximum` is the bottom-right corner
     #[inline]
-    pub fn outer_bbox(&self) -> BBox {
+    pub fn outer_bbox(&self) -> ScreenBBox {
         let minimum = (self.x, self.y);
         let maximum = (self.x + self.width, self.y + self.height);
         BBox::new(minimum, maximum)
@@ -171,7 +140,7 @@ impl Viewport {
     /// - `minimum` is the top-left corner
     /// - `maximum` is the bottom-right corner
     #[inline]
-    pub fn inner_bbox(&self) -> BBox {
+    pub fn inner_bbox(&self) -> ScreenBBox {
         let minimum = (self.x + self.margins.left, self.y + self.margins.top);
         let maximum = (
             self.x + self.width - self.margins.right,
@@ -190,12 +159,12 @@ fn map_val(val: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f3
 }
 #[derive(Debug, Clone, Copy)]
 pub struct ViewTransformer {
-    pub data_bounds: BBox,
+    pub data_bounds: DataBBox,
     pub screen_bounds: Viewport,
 }
 
 impl ViewTransformer {
-    pub fn new(data_bounds: BBox, screen_bounds: Viewport) -> Self {
+    pub fn new(data_bounds: DataBBox, screen_bounds: Viewport) -> Self {
         Self {
             data_bounds,
             screen_bounds,
@@ -203,7 +172,7 @@ impl ViewTransformer {
     }
 
     /// Converts a point from Data Space to Screen Space
-    pub fn to_screen(&self, point: &Point) -> Point {
+    pub fn to_screen(&self, point: &Datapoint) -> Screenpoint {
         let screen_bounds = self.screen_bounds.inner_bbox();
         let x = map_val(
             point.x,
@@ -224,7 +193,7 @@ impl ViewTransformer {
             screen_bounds.minimum.y,
         );
 
-        Point { x, y }
+        Screenpoint((x, y).into())
     }
 }
 #[cfg(test)]
@@ -242,17 +211,17 @@ mod tests {
         let view = ViewTransformer::new(data, viewport);
 
         // data bottom-left -> screen bottom-left
-        let p = view.to_screen(&Point::new(0.0, 0.0));
+        let p = view.to_screen(&Datapoint::new(0.0, 0.0));
         assert_approx(p.x, 0.0);
         assert_approx(p.y, 100.0);
 
         // data top-left -> screen top-left
-        let p = view.to_screen(&Point::new(0.0, 10.0));
+        let p = view.to_screen(&Datapoint::new(0.0, 10.0));
         assert_approx(p.x, 0.0);
         assert_approx(p.y, 0.0);
 
         // data bottom-right -> screen bottom-right
-        let p = view.to_screen(&Point::new(10.0, 0.0));
+        let p = view.to_screen(&Datapoint::new(10.0, 0.0));
         assert_approx(p.x, 100.0);
         assert_approx(p.y, 100.0);
     }

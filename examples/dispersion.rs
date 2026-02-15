@@ -69,10 +69,10 @@ fn main() {
         d.clear_background(colorscheme.background);
         g1.plot(
             &mut d,
-            GraphBuilder::default()
+            &GraphBuilder::default()
                 .viewport(Viewport::new(
-                    10.0,
-                    10.0,
+                    20.0,
+                    20.0,
                     (WIDTH / 2) as f32,
                     (HEIGHT - 15) as f32,
                 ))
@@ -97,10 +97,10 @@ fn main() {
         );
         g2.plot(
             &mut d,
-            GraphBuilder::default()
+            &GraphBuilder::default()
                 .viewport(Viewport::new(
                     (WIDTH / 2) as f32,
-                    10.0,
+                    20.0,
                     (WIDTH / 2) as f32,
                     (HEIGHT - 15) as f32,
                 ))

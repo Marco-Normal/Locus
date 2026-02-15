@@ -52,19 +52,19 @@ fn main() {
     let mut kmeans = KMeans::new(4, &dataset);
     kmeans.fit();
     let kmeans_plot = kmeans.plot();
-
+    let colorscheme = GITHUB_DARK.clone();
     let graph = Graph::new(kmeans_plot);
     let graph_config: locus::graph::GraphConfig<commom::KMeansPlot<'_>> = GraphBuilder::default()
         .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
         .grid(grid_lines)
         .axis(axis)
         .subject_configs(KMeansPlotBuilder::default().build().unwrap())
-        .colorscheme(GITHUB_DARK.clone())
+        .colorscheme(colorscheme.clone())
         .build()
-        .unwrap()
-        .resolve_theme();
+        .unwrap();
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&rl_thread);
+        d.clear_background(colorscheme.background);
         graph.plot(&mut d, &graph_config);
     }
 }

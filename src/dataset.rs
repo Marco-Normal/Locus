@@ -1,17 +1,17 @@
-use crate::plottable::point::Point;
+use crate::plottable::point::Datapoint;
 use raylib::prelude::Vector2;
 
 #[derive(Debug, Clone)]
 pub struct Dataset {
-    pub data: Vec<Point>,
+    pub data: Vec<Datapoint>,
     pub range_max: Vector2,
     pub range_min: Vector2,
 }
 
 impl Dataset {
     #[must_use]
-    pub fn new(data: Vec<impl Into<Point>>) -> Self {
-        let data: Vec<Point> = data
+    pub fn new(data: Vec<impl Into<Datapoint>>) -> Self {
+        let data: Vec<Datapoint> = data
             .into_iter()
             .map(std::convert::Into::into)
             .collect::<Vec<_>>();

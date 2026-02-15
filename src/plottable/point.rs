@@ -8,7 +8,85 @@ use derive_builder::Builder;
 use raylib::math::Vector2;
 use raylib::prelude::*;
 
-pub type Point = Vector2;
+#[derive(Clone, Copy, Debug)]
+pub struct Datapoint(pub Vector2);
+
+impl Datapoint {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self((x, y).into())
+    }
+}
+
+impl From<Vector2> for Datapoint {
+    fn from(value: Vector2) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&Vector2> for Datapoint {
+    fn from(value: &Vector2) -> Self {
+        Self(*value)
+    }
+}
+
+impl From<(f32, f32)> for Datapoint {
+    fn from(value: (f32, f32)) -> Self {
+        Datapoint(value.into())
+    }
+}
+
+impl std::ops::DerefMut for Datapoint {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl std::ops::Deref for Datapoint {
+    type Target = Vector2;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[derive(Clone, Copy, Debug)]
+pub struct Screenpoint(pub Vector2);
+
+impl Screenpoint {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self((x, y).into())
+    }
+}
+impl From<Vector2> for Screenpoint {
+    fn from(value: Vector2) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&Vector2> for Screenpoint {
+    fn from(value: &Vector2) -> Self {
+        Self(*value)
+    }
+}
+
+impl From<(f32, f32)> for Screenpoint {
+    fn from(value: (f32, f32)) -> Self {
+        Screenpoint(value.into())
+    }
+}
+
+impl std::ops::DerefMut for Screenpoint {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl std::ops::Deref for Screenpoint {
+    type Target = Vector2;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Shape {
@@ -46,7 +124,7 @@ impl Default for PointConfig {
 //     }
 // }
 
-impl PlotElement for Point {
+impl PlotElement for Screenpoint {
     type Config = PointConfig;
 
     fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, configs: &PointConfig) {

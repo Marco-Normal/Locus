@@ -13,6 +13,7 @@ use crate::{
     plotter::{ChartElement, PlotElement},
 };
 use derive_builder::Builder;
+use raylib::prelude::RaylibScissorModeExt;
 /// Represents a graph over `subject`, orchestrating elements such as axis, gridlines
 /// and other important pieces.
 pub struct Graph<T>
@@ -35,7 +36,7 @@ where
 /// Main configuration for the graph. It's possible to pass configuration from the
 /// `subject`, as well as, for axis, gridlines, offset for the graph, and bounding box.
 #[derive(Debug, Clone, Builder)]
-#[builder(pattern = "owned", name = "GraphBuilder")]
+#[builder(pattern = "owned", name = "GraphBuilder", build_fn(skip))]
 pub struct GraphConfig<T>
 where
     T: ChartElement,
@@ -57,6 +58,25 @@ where
     colorscheme: Colorscheme,
 }
 
+impl<T> GraphBuilder<T>
+where
+    T: ChartElement,
+    <T as ChartElement>::Config: Default + Themable,
+{
+    #[allow(clippy::missing_errors_doc)]
+    pub fn build(self) -> Result<GraphConfig<T>, GraphBuilderError> {
+        Ok(GraphConfig {
+            subject_configs: self.subject_configs.unwrap_or_default(),
+            viewport: self.viewport.unwrap_or_default(),
+            axis: self.axis.unwrap_or(None),
+            axis_configs: self.axis_configs.unwrap_or(None),
+            grid: self.grid.unwrap_or(None),
+            grid_configs: self.grid_configs.unwrap_or(None),
+            colorscheme: self.colorscheme.unwrap_or_default(),
+        }
+        .resolve_theme())
+    }
+}
 impl<T> GraphConfig<T>
 where
     T: ChartElement,
@@ -65,7 +85,8 @@ where
     /// Resolves theme-driven defaults (subject + axis/grid configs) once.
     /// Call this after `build()` and reuse the returned config across frames.
     #[must_use]
-    pub fn resolve_theme(mut self) -> Self {
+    #[allow(clippy::missing_panics_doc)]
+    fn resolve_theme(mut self) -> Self {
         // Subject config: theme-driven defaults (e.g. ScatterPlot default color)
         self.subject_configs.apply_theme(&self.colorscheme);
         // Grid config: if enabled and missing config, create a themed default; otherwise theme it.
@@ -106,7 +127,7 @@ where
 {
     type Config = GraphConfig<T>;
 
-    fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, mut configs: &GraphConfig<T>) {
+    fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, configs: &GraphConfig<T>) {
         // We need to construct the view where the graph elements will live.
         // As such, we need to provide the screen-bounds, given by the configs
         // and the data-bounds, given by the `subject.data_bounds()`
@@ -118,35 +139,45 @@ where
             self.subject.data_bounds()
         };
         let view = ViewTransformer::new(data_bbox, screen);
+        let inner_bbox = screen.inner_bbox();
+        let mut scissors = rl.begin_scissor_mode(
+            inner_bbox.minimum.x as i32,
+            inner_bbox.minimum.y as i32,
+            inner_bbox.width() as i32,
+            inner_bbox.height() as i32,
+        );
+        // let mut scissors = rl;
         // We have all the necessary parts for constructing the graph. With that is a job of
         // seeing what we have and what don't.
         if let Some(grid) = configs.grid {
             // If the grid has a config, use it, else, defaults to configs from the graph + defaults
             // from element.
             // NOTE: Should always unwrap with a configuration, if the user applied theming.
-            let grid_conf = configs.grid_configs.unwrap_or({
-                GridLinesConfigBuilder::default()
-                    .color(configs.colorscheme.grid)
-                    .build()
-                    .expect("Default values set")
-            });
-            grid.draw_in_view(rl, &grid_conf, &view);
+            assert!(configs.grid_configs.is_some());
+            let grid_conf = configs
+                .grid_configs
+                .expect("Should always be set by the default constructor");
+            grid.draw_in_view(&mut scissors, &grid_conf, &view);
         }
 
         // We plot the subject inside the view.
         // configs.subject_configs.apply_theme(&configs.colorscheme);
         self.subject
-            .draw_in_view(rl, &configs.subject_configs, &view);
+            .draw_in_view(&mut scissors, &configs.subject_configs, &view);
         // Plot the axis and the story is the same. If we have an config given by the user
         // use it, else, defaults to graph configs + element defaults.
         if let Some(axis) = configs.axis {
-            let axis_conf = configs.axis_configs.unwrap_or(
-                AxisConfigsBuilder::default()
-                    .color(configs.colorscheme.axis)
-                    .build()
-                    .expect("Default values set"),
-            );
-            axis.draw_in_view(rl, &axis_conf, &view);
+            // let axis_conf = configs.axis_configs.unwrap_or(
+            //     AxisConfigsBuilder::default()
+            //         .color(configs.colorscheme.axis)
+            //         .build()
+            //         .expect("Default values set"),
+            // );
+            assert!(configs.axis_configs.is_some());
+            let axis_conf = configs
+                .axis_configs
+                .expect("Should always be set by the default constructor");
+            axis.draw_in_view(&mut scissors, &axis_conf, &view);
         }
     }
 }

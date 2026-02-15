@@ -2,18 +2,18 @@ use crate::{
     colorscheme::Themable,
     dataset::Dataset,
     plottable::{
-        point::{Point, PointConfigBuilder, Shape},
-        view::{BBox, ViewTransformer},
+        point::{Datapoint, PointConfigBuilder, Shape},
+        view::{DataBBox, ViewTransformer},
     },
     plotter::{ChartElement, PlotElement},
 };
 use derive_builder::Builder;
 use raylib::prelude::Color;
 
-pub type DynamicSize = Box<dyn Fn(&Point, usize) -> f32>;
-pub type DynamicColor = Box<dyn Fn(&Point, usize) -> Color>;
-pub type DynamicShape = Box<dyn Fn(&Point, usize) -> Shape>;
-pub type Dynamic<T> = Box<dyn Fn(&Point, usize) -> T>;
+pub type DynamicSize = Box<dyn Fn(&Datapoint, usize) -> f32>;
+pub type DynamicColor = Box<dyn Fn(&Datapoint, usize) -> Color>;
+pub type DynamicShape = Box<dyn Fn(&Datapoint, usize) -> Shape>;
+pub type Dynamic<T> = Box<dyn Fn(&Datapoint, usize) -> T>;
 
 pub enum Strategy<T> {
     Fixed(T),
@@ -143,16 +143,10 @@ impl ChartElement for ScatterPlot<'_> {
         });
     }
 
-    fn data_bounds(&self) -> BBox {
-        BBox {
-            minimum: Point {
-                x: self.data.range_min.x,
-                y: self.data.range_min.y,
-            },
-            maximum: Point {
-                x: self.data.range_max.x,
-                y: self.data.range_max.y,
-            },
+    fn data_bounds(&self) -> DataBBox {
+        DataBBox {
+            minimum: Datapoint((self.data.range_min.x, self.data.range_min.y).into()),
+            maximum: Datapoint((self.data.range_max.x, self.data.range_max.y).into()),
         }
     }
 }

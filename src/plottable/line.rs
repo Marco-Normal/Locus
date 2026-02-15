@@ -10,8 +10,8 @@ use raylib::prelude::*;
 use crate::{
     colorscheme::Themable,
     plottable::{
-        point::Point,
-        view::{BBox, ViewTransformer},
+        point::Datapoint,
+        view::{DataBBox, ViewTransformer},
     },
     plotter::{ChartElement, PlotElement},
 };
@@ -19,13 +19,13 @@ use crate::{
 /// Represents a line in going `from` a point `to` another.
 #[derive(Debug, Clone, Copy)]
 pub struct Line {
-    pub(crate) from: Point,
-    pub(crate) to: Point,
+    pub(crate) from: Datapoint,
+    pub(crate) to: Datapoint,
 }
 
 impl Line {
     #[must_use]
-    pub fn new(from: impl Into<Point>, to: impl Into<Point>) -> Self {
+    pub fn new(from: impl Into<Datapoint>, to: impl Into<Datapoint>) -> Self {
         Self {
             from: from.into(),
             to: to.into(),
@@ -64,7 +64,7 @@ impl PlotElement for Line {
     fn plot(&self, rl: &mut RaylibDrawHandle, configs: &LineConfig) {
         match configs.arrow {
             Visibility::Visible => {
-                rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
+                rl.draw_line_ex(*self.from, *self.to, configs.thickness, configs.color);
                 let direction = Vector2 {
                     x: self.to.x - self.from.x,
                     y: self.to.y - self.from.y,
@@ -88,7 +88,7 @@ impl PlotElement for Line {
                 rl.draw_triangle(p2, p1, tail, configs.color);
             }
             Visibility::Invisible => {
-                rl.draw_line_ex(self.from, self.to, configs.thickness, configs.color);
+                rl.draw_line_ex(*self.from, *self.to, configs.thickness, configs.color);
             }
         }
     }
@@ -137,8 +137,8 @@ impl Axis {
         );
 
         Self {
-            x_axis: Line::new(Point::new(min_x, min_y), Point::new(max_x, min_y)),
-            y_axis: Line::new(Point::new(min_x, min_y), Point::new(min_x, max_y)),
+            x_axis: Line::new(Datapoint::new(min_x, min_y), Datapoint::new(max_x, min_y)),
+            y_axis: Line::new(Datapoint::new(min_x, min_y), Datapoint::new(min_x, max_y)),
         }
     }
 }
@@ -172,12 +172,12 @@ impl From<(Range<f32>, Range<f32>)> for Axis {
     fn from(value: (Range<f32>, Range<f32>)) -> Self {
         Axis {
             x_axis: Line::new(
-                Point::new(value.0.start, value.1.start),
-                Point::new(value.0.end, value.1.start),
+                Datapoint::new(value.0.start, value.1.start),
+                Datapoint::new(value.0.end, value.1.start),
             ),
             y_axis: Line::new(
-                Point::new(value.0.start, value.1.start),
-                Point::new(value.0.start, value.1.end),
+                Datapoint::new(value.0.start, value.1.start),
+                Datapoint::new(value.0.start, value.1.end),
             ),
         }
     }
@@ -296,7 +296,7 @@ impl ChartElement for Axis {
             let x_end = view.to_screen(&self.x_axis.to);
             let y_start = view.to_screen(&self.y_axis.from);
             let y_end = view.to_screen(&self.y_axis.to);
-            (Line::new(x_start, x_end), Line::new(y_start, y_end))
+            (Line::new(*x_start, *x_end), Line::new(*y_start, *y_end))
         };
 
         let line_config_x = LineConfig {
@@ -328,16 +328,16 @@ impl ChartElement for Axis {
         }
     }
 
-    fn data_bounds(&self) -> BBox {
-        BBox {
-            maximum: Point {
-                x: self.x_axis.from.x.max(self.x_axis.to.x),
-                y: self.y_axis.from.y.max(self.y_axis.to.y),
-            },
-            minimum: Point {
-                x: self.x_axis.from.x.min(self.x_axis.to.x),
-                y: self.y_axis.from.y.min(self.y_axis.to.y),
-            },
+    fn data_bounds(&self) -> DataBBox {
+        DataBBox {
+            maximum: Datapoint::new(
+                self.x_axis.from.x.max(self.x_axis.to.x),
+                self.y_axis.from.y.max(self.y_axis.to.y),
+            ),
+            minimum: Datapoint::new(
+                self.x_axis.from.x.min(self.x_axis.to.x),
+                self.y_axis.from.y.min(self.y_axis.to.y),
+            ),
         }
     }
 }
@@ -452,11 +452,11 @@ impl GridLines {
         let data_y_end = self.axis.y_axis.to.y;
 
         // Transform both ends to Screen Space
-        let start = view.to_screen(&Point::new(data_x, data_y_start));
-        let end = view.to_screen(&Point::new(data_x, data_y_end));
+        let start = view.to_screen(&Datapoint::new(data_x, data_y_start));
+        let end = view.to_screen(&Datapoint::new(data_x, data_y_end));
 
         let color = config.color.alpha(config.alpha);
-        rl.draw_line_ex(start, end, config.thickness, color);
+        rl.draw_line_ex(*start, *end, config.thickness, color);
     }
 
     fn draw_h_line(
@@ -469,11 +469,11 @@ impl GridLines {
         let data_x_start = self.axis.x_axis.from.x;
         let data_x_end = self.axis.x_axis.to.x;
 
-        let start = view.to_screen(&Point::new(data_x_start, data_y));
-        let end = view.to_screen(&Point::new(data_x_end, data_y));
+        let start = view.to_screen(&Datapoint::new(data_x_start, data_y));
+        let end = view.to_screen(&Datapoint::new(data_x_end, data_y));
 
         let color = config.color.alpha(config.alpha);
-        rl.draw_line_ex(start, end, config.thickness, color);
+        rl.draw_line_ex(*start, *end, config.thickness, color);
     }
 
     fn plot_vertical(
@@ -556,7 +556,7 @@ impl ChartElement for GridLines {
         }
     }
 
-    fn data_bounds(&self) -> BBox {
+    fn data_bounds(&self) -> DataBBox {
         self.axis.data_bounds()
     }
 }

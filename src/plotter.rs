@@ -3,7 +3,7 @@
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 use raylib::prelude::RaylibDrawHandle;
 
-use crate::plottable::view::{BBox, ViewTransformer};
+use crate::plottable::view::{DataBBox, ViewTransformer};
 
 /// Main trait for primitive types, where there is no need for a reference bounded by
 /// an axis or scale. Elements implementing this trait should be plotted in the same
@@ -23,5 +23,5 @@ pub trait ChartElement {
         configs: &Self::Config,
         view: &ViewTransformer,
     );
-    fn data_bounds(&self) -> BBox;
+    fn data_bounds(&self) -> DataBBox;
 }
