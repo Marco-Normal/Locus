@@ -330,16 +330,16 @@ impl ChartElement for Axis {
     }
 
     fn data_bounds(&self) -> DataBBox {
-        DataBBox {
-            maximum: Datapoint::new(
-                self.x_axis.from.x.max(self.x_axis.to.x),
-                self.y_axis.from.y.max(self.y_axis.to.y),
-            ),
-            minimum: Datapoint::new(
+        DataBBox::from_min_max(
+            (
                 self.x_axis.from.x.min(self.x_axis.to.x),
                 self.y_axis.from.y.min(self.y_axis.to.y),
             ),
-        }
+            (
+                self.x_axis.from.x.max(self.x_axis.to.x),
+                self.y_axis.from.y.max(self.y_axis.to.y),
+            ),
+        )
     }
 }
 

@@ -55,7 +55,7 @@ fn main() {
     let kmeans_plot = kmeans.plot();
     let colorscheme = GITHUB_DARK.clone();
     let graph = Graph::new(kmeans_plot);
-    let graph_config: locus::graph::GraphConfig<commoncrate::::KMeansPlot<'_>> = GraphBuilder::default()
+    let graph_config: locus::graph::GraphConfig<common::KMeansPlot<'_>> = GraphBuilder::default()
         .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
         .grid(grid_lines)
         .axis(axis)
