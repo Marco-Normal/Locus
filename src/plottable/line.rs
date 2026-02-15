@@ -145,6 +145,7 @@ impl Axis {
 
 /// Generates a "nice range" that fits `min` and `max`. This means that will snap, generally,
 /// to numbers that are multiple of 5 or 10.
+#[allow(clippy::cast_precision_loss)]
 fn calculate_nice_range(min: f32, max: f32, padding_pct: f32, ticks: usize) -> (f32, f32) {
     if (min - max).abs() < f32::EPSILON {
         return (min - 1.0, max + 1.0); // Handle single-point datasets
@@ -159,7 +160,7 @@ fn calculate_nice_range(min: f32, max: f32, padding_pct: f32, ticks: usize) -> (
 
     // Calculate a "nice" step size based on the PADDED range
     let padded_range = padded_max - padded_min;
-    let rough_step = padded_range / (ticks as f32);
+    let rough_step = padded_range / (ticks.max(1) as f32);
     let step = nice_number(rough_step, true);
 
     // Snap to the nearest grid line outside the data
@@ -520,7 +521,7 @@ impl GridLines {
         }
     }
 }
-
+#[allow(clippy::cast_precision_loss)]
 fn get_spacing(length: f32, separation: Separation, max_ticks: usize) -> f32 {
     match separation {
         Separation::Value(v) => v,

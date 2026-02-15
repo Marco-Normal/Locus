@@ -2,10 +2,8 @@
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 use std::f32;
-
-use raylib::prelude::*;
-mod commom;
-use commom::{make_circles, make_moons};
+mod common;
+use common::{make_circles, make_moons};
 use locus::{
     HEIGHT, WIDTH,
     colorscheme::GITHUB_DARK,
@@ -17,9 +15,10 @@ use locus::{
     },
     plotter::PlotElement,
 };
+use raylib::prelude::*;
 
-use crate::commom::{MakeCirclesBuilder, MakeMoonsBuilder};
-
+use common::{MakeCirclesBuilder, MakeMoonsBuilder};
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 fn main() {
     let (mut rl, rl_thread) = raylib::init()
         .width(WIDTH)
@@ -27,7 +26,7 @@ fn main() {
         .title("Datasets")
         .build();
     let d1 = make_circles(
-        MakeCirclesBuilder::default()
+        &MakeCirclesBuilder::default()
             .n_circles(10)
             .radius(5.0..10.0)
             .with_equal_ranges(-10.0..10.0)
@@ -36,7 +35,7 @@ fn main() {
             .unwrap(),
     );
     let d2 = make_moons(
-        MakeMoonsBuilder::default()
+        &MakeMoonsBuilder::default()
             .with_equal_ranges(-10.0..10.0)
             .n_moons(9)
             .noise(true)
@@ -71,8 +70,8 @@ fn main() {
             &mut d,
             &GraphBuilder::default()
                 .viewport(Viewport::new(
-                    20.0,
-                    20.0,
+                    10.0,
+                    10.0,
                     (WIDTH / 2) as f32,
                     (HEIGHT - 15) as f32,
                 ))
@@ -100,7 +99,7 @@ fn main() {
             &GraphBuilder::default()
                 .viewport(Viewport::new(
                     (WIDTH / 2) as f32,
-                    20.0,
+                    10.0,
                     (WIDTH / 2) as f32,
                     (HEIGHT - 15) as f32,
                 ))

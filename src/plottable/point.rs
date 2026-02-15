@@ -12,6 +12,7 @@ use raylib::prelude::*;
 pub struct Datapoint(pub Vector2);
 
 impl Datapoint {
+    #[must_use]
     pub fn new(x: f32, y: f32) -> Self {
         Self((x, y).into())
     }
@@ -52,6 +53,7 @@ impl std::ops::Deref for Datapoint {
 pub struct Screenpoint(pub Vector2);
 
 impl Screenpoint {
+    #[must_use]
     pub fn new(x: f32, y: f32) -> Self {
         Self((x, y).into())
     }
@@ -114,19 +116,9 @@ impl Default for PointConfig {
     }
 }
 
-// impl PlotConfig for PointConfig {
-//     fn with_bounds(&mut self, by: BBox) {
-//         self.bbox = by;
-//     }
-
-//     fn with_offset(&mut self, by: Offsets) {
-//         self.offsets = by;
-//     }
-// }
-
 impl PlotElement for Screenpoint {
     type Config = PointConfig;
-
+    #[allow(clippy::cast_possible_truncation)]
     fn plot(&self, rl: &mut raylib::prelude::RaylibDrawHandle, configs: &PointConfig) {
         let x = self.x;
         let y = self.y;

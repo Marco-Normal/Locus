@@ -8,7 +8,7 @@ use crate::{
             Axis, AxisConfigs, AxisConfigsBuilder, GridLines, GridLinesConfig,
             GridLinesConfigBuilder,
         },
-        view::{ViewTransformer, Viewport},
+        view::{ScreenBBox, ViewTransformer, Viewport},
     },
     plotter::{ChartElement, PlotElement},
 };
@@ -139,33 +139,31 @@ where
             self.subject.data_bounds()
         };
         let view = ViewTransformer::new(data_bbox, screen);
-        let inner_bbox = screen.inner_bbox();
-        let mut scissors = rl.begin_scissor_mode(
-            inner_bbox.minimum.x as i32,
-            inner_bbox.minimum.y as i32,
-            inner_bbox.width() as i32,
-            inner_bbox.height() as i32,
-        );
-        // let mut scissors = rl;
-        // We have all the necessary parts for constructing the graph. With that is a job of
-        // seeing what we have and what don't.
-        if let Some(grid) = configs.grid {
-            // If the grid has a config, use it, else, defaults to configs from the graph + defaults
-            // from element.
-            // NOTE: Should always unwrap with a configuration, if the user applied theming.
-            assert!(configs.grid_configs.is_some());
-            let grid_conf = configs
-                .grid_configs
-                .expect("Should always be set by the default constructor");
-            grid.draw_in_view(&mut scissors, &grid_conf, &view);
-        }
+        {
+            let inner_bbox = screen.inner_bbox();
+            let (x, y, w, h) = scissor_rect_from_bbox(inner_bbox);
+            let mut scissors = rl.begin_scissor_mode(x, y, w, h);
+            // We have all the necessary parts for constructing the graph. With that is a job of
+            // seeing what we have and what don't.
+            if let Some(grid) = configs.grid {
+                // If the grid has a config, use it, else, defaults to configs from the graph + defaults
+                // from element.
+                // NOTE: Should always unwrap with a configuration, if the user applied theming.
+                assert!(configs.grid_configs.is_some());
+                let grid_conf = configs
+                    .grid_configs
+                    .expect("Should always be set by the default constructor");
+                grid.draw_in_view(&mut scissors, &grid_conf, &view);
+            }
 
-        // We plot the subject inside the view.
-        // configs.subject_configs.apply_theme(&configs.colorscheme);
-        self.subject
-            .draw_in_view(&mut scissors, &configs.subject_configs, &view);
-        // Plot the axis and the story is the same. If we have an config given by the user
+            // We plot the subject inside the view.
+            // configs.subject_configs.apply_theme(&configs.colorscheme);
+            self.subject
+                .draw_in_view(&mut scissors, &configs.subject_configs, &view);
+        }
+        //If we have an config given by the user
         // use it, else, defaults to graph configs + element defaults.
+        // NOTE: Axis shouldn't be scissored.
         if let Some(axis) = configs.axis {
             // let axis_conf = configs.axis_configs.unwrap_or(
             //     AxisConfigsBuilder::default()
@@ -177,7 +175,16 @@ where
             let axis_conf = configs
                 .axis_configs
                 .expect("Should always be set by the default constructor");
-            axis.draw_in_view(&mut scissors, &axis_conf, &view);
+            axis.draw_in_view(rl, &axis_conf, &view);
         }
     }
+}
+#[allow(clippy::cast_possible_truncation)]
+fn scissor_rect_from_bbox(b: ScreenBBox) -> (i32, i32, i32, i32) {
+    // Round to pixel grid; clamp sizes to >= 0
+    let x = b.minimum.x.round() as i32;
+    let y = b.minimum.y.round() as i32;
+    let width = b.width().round().max(0.0) as i32;
+    let height = b.height().round().max(0.0) as i32;
+    (x, y, width, height)
 }

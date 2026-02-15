@@ -2,8 +2,8 @@
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 
-mod commom;
-use commom::{KMeans, KMeansPlotBuilder, MakeCirclesBuilder, make_circles};
+mod common;
+use common::{KMeans, KMeansPlotBuilder, MakeCirclesBuilder, make_circles};
 use locus::{
     HEIGHT, WIDTH,
     colorscheme::GITHUB_DARK,
@@ -20,6 +20,7 @@ use std::f32;
 const MAX_COLOR: Color = Color::RED;
 const MIN_COLOR: Color = Color::BLUE;
 
+#[allow(clippy::cast_precision_loss)]
 fn main() {
     let (mut rl, rl_thread) = raylib::init()
         .width(WIDTH)
@@ -27,7 +28,7 @@ fn main() {
         .title("2D K Means")
         .build();
     let dataset = make_circles(
-        MakeCirclesBuilder::default()
+        &MakeCirclesBuilder::default()
             .with_equal_ranges(-50.0..50.0)
             .n_samples(15000)
             .n_circles(100)
@@ -54,7 +55,7 @@ fn main() {
     let kmeans_plot = kmeans.plot();
     let colorscheme = GITHUB_DARK.clone();
     let graph = Graph::new(kmeans_plot);
-    let graph_config: locus::graph::GraphConfig<commom::KMeansPlot<'_>> = GraphBuilder::default()
+    let graph_config: locus::graph::GraphConfig<commoncrate::::KMeansPlot<'_>> = GraphBuilder::default()
         .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
         .grid(grid_lines)
         .axis(axis)
