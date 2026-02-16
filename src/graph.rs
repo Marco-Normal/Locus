@@ -6,7 +6,7 @@ use crate::{
     plottable::{
         line::{
             Axis, AxisConfigs, AxisConfigsBuilder, GridLines, GridLinesConfig,
-            GridLinesConfigBuilder,
+            GridLinesConfigBuilder, TickLabels, TickLabelsBuilder, TickLabelsConfig,
         },
         view::{ScreenBBox, ViewTransformer, Viewport},
     },
@@ -56,6 +56,10 @@ where
     grid_configs: Option<GridLinesConfig>,
     #[builder(default)]
     colorscheme: Colorscheme,
+    #[builder(setter(into, strip_option), default = "None")]
+    ticks: Option<TickLabels>,
+    #[builder(setter(into, strip_option), default = "None")]
+    ticks_configs: Option<TickLabelsConfig>,
 }
 
 impl<T> GraphBuilder<T>
@@ -73,6 +77,8 @@ where
             grid: self.grid.unwrap_or(None),
             grid_configs: self.grid_configs.unwrap_or(None),
             colorscheme: self.colorscheme.unwrap_or_default(),
+            ticks: self.ticks.unwrap_or(None),
+            ticks_configs: self.ticks_configs.unwrap_or(None),
         }
         .resolve_theme())
     }
@@ -117,6 +123,21 @@ where
                 }
             }
         }
+
+        // Ticks config: if enabled and missing config, create a themed default; otherwise theme it.
+        if self.ticks.is_some() {
+            match &mut self.ticks_configs {
+                Some(cfg) => cfg.apply_theme(&self.colorscheme),
+                None => {
+                    self.ticks_configs = Some(
+                        TickLabelsBuilder::default()
+                            .color(self.colorscheme.axis)
+                            .build()
+                            .expect("Default values set"),
+                    );
+                }
+            }
+        }
         self
     }
 }
@@ -154,6 +175,14 @@ where
                     .grid_configs
                     .expect("Should always be set by the default constructor");
                 grid.draw_in_view(&mut scissors, &grid_conf, &view);
+            }
+
+            if let Some(ticks) = &configs.ticks {
+                assert!(configs.ticks_configs.is_some());
+                let ticks_config = configs
+                    .ticks_configs
+                    .expect("Should always be set by the default constructor");
+                ticks.draw_in_view(&mut scissors, &ticks_config, &view);
             }
 
             // We plot the subject inside the view.

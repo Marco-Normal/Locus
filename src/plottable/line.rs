@@ -10,7 +10,9 @@ use raylib::prelude::*;
 use crate::{
     colorscheme::Themable,
     plottable::{
+        common::{get_spacing, nice_number},
         point::Datapoint,
+        ticks::{Scale, TickSet, TickSpec},
         view::{DataBBox, ViewTransformer},
     },
     plotter::{ChartElement, PlotElement},
@@ -412,33 +414,6 @@ impl Default for GridLinesConfig {
     }
 }
 
-fn nice_number(value: f32, round: bool) -> f32 {
-    let exponent = value.log10().floor();
-    let fraction = value / 10.0_f32.powf(exponent);
-
-    let nice_fraction = if round {
-        if fraction < 1.5 {
-            1.0
-        } else if fraction < 3.0 {
-            2.0
-        } else if fraction < 7.0 {
-            5.0
-        } else {
-            10.0
-        }
-    } else if fraction <= 1.0 {
-        1.0
-    } else if fraction <= 2.0 {
-        2.0
-    } else if fraction <= 5.0 {
-        5.0
-    } else {
-        10.0
-    };
-
-    nice_fraction * 10.0_f32.powf(exponent)
-}
-
 impl GridLines {
     /// Internal helper to draw a single vertical line
     fn draw_v_line(
@@ -522,15 +497,6 @@ impl GridLines {
     }
 }
 #[allow(clippy::cast_precision_loss)]
-fn get_spacing(length: f32, separation: Separation, max_ticks: usize) -> f32 {
-    match separation {
-        Separation::Value(v) => v,
-        Separation::Auto => {
-            let rough_spacing = length / (max_ticks as f32).max(1.0);
-            nice_number(rough_spacing, true)
-        }
-    }
-}
 impl ChartElement for GridLines {
     type Config = GridLinesConfig;
 
@@ -565,5 +531,184 @@ impl ChartElement for GridLines {
 impl Themable for GridLinesConfig {
     fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
         self.color = scheme.grid;
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub struct TickLabels {
+    pub(crate) axis: Axis,
+}
+
+impl TickLabels {
+    pub fn new(axis: Axis) -> Self {
+        Self { axis }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Builder)]
+#[builder(pattern = "owned")]
+#[builder(default, name = "TickLabelsBuilder")]
+pub struct TickLabelsConfig {
+    color: Color,
+    alpha: f32,
+    major_size: f32,
+    minor_size: f32,
+    max_ticks: usize,
+    separation: Separation,
+    #[builder(private)]
+    x_axis: Visibility,
+    #[builder(default = "Scale::Linear", private)]
+    x_axis_scale: Scale, // Only matter if x axis is visible, else is ignored
+    #[builder(private)]
+    y_axis: Visibility,
+    #[builder(default = "Scale::Linear", private)]
+    y_axis_scale: Scale, // Only matter if y axis is visible, else is ignored
+}
+
+impl TickLabelsBuilder {
+    #[must_use]
+    pub fn with_x_scale(self, scale: Scale) -> Self {
+        Self {
+            x_axis: Some(Visibility::Visible),
+            x_axis_scale: Some(scale),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn with_y_scale(self, scale: Scale) -> Self {
+        Self {
+            y_axis: Some(Visibility::Visible),
+            y_axis_scale: Some(scale),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn with_both_axis_scale(self, scale: Scale) -> Self {
+        Self {
+            y_axis: Some(Visibility::Visible),
+            y_axis_scale: Some(scale),
+            x_axis: Some(Visibility::Visible),
+            x_axis_scale: Some(scale),
+            ..self
+        }
+    }
+}
+
+impl Default for TickLabelsConfig {
+    fn default() -> Self {
+        Self {
+            color: Color::WHITE,
+            alpha: 0.3,
+            major_size: 5.0,
+            minor_size: 3.0,
+            max_ticks: 10,
+            separation: Separation::Auto,
+            x_axis: Visibility::Invisible,
+            y_axis: Visibility::Invisible,
+            x_axis_scale: Scale::Linear, // Do not matter as x axis is invisible
+            y_axis_scale: Scale::Linear,
+        }
+    }
+}
+
+impl ChartElement for TickLabels {
+    type Config = TickLabelsConfig;
+
+    fn draw_in_view(
+        &self,
+        rl: &mut RaylibDrawHandle,
+        configs: &Self::Config,
+        view: &ViewTransformer,
+    ) {
+        let data_bounds = self.data_bounds();
+        match configs.x_axis {
+            Visibility::Visible => {
+                let tickset = TickSet::generate_ticks(
+                    data_bounds.minimum.x,
+                    data_bounds.maximum.x,
+                    TickSpec {
+                        scale: configs.x_axis_scale,
+                        max_ticks: configs.max_ticks,
+                        separation: configs.separation,
+                    },
+                );
+                for ticks in tickset.ticks {
+                    let screen_point = view.to_screen(&(ticks.value, data_bounds.minimum.y).into());
+                    rl.draw_line_v(
+                        Vector2::new(
+                            screen_point.x,
+                            screen_point.y
+                                - if ticks.major {
+                                    configs.major_size
+                                } else {
+                                    configs.minor_size
+                                },
+                        ),
+                        Vector2::new(
+                            screen_point.x,
+                            screen_point.y
+                                + if ticks.major {
+                                    configs.major_size
+                                } else {
+                                    configs.minor_size
+                                },
+                        ),
+                        configs.color,
+                    );
+                }
+            }
+            Visibility::Invisible => {}
+        }
+
+        match configs.y_axis {
+            Visibility::Visible => {
+                let tickset = TickSet::generate_ticks(
+                    data_bounds.minimum.y,
+                    data_bounds.maximum.y,
+                    TickSpec {
+                        scale: configs.y_axis_scale,
+                        max_ticks: configs.max_ticks,
+                        separation: configs.separation,
+                    },
+                );
+                for ticks in tickset.ticks {
+                    let screen_point = view.to_screen(&(ticks.value, data_bounds.minimum.x).into());
+                    rl.draw_line_v(
+                        Vector2::new(
+                            screen_point.x
+                                - if ticks.major {
+                                    configs.major_size
+                                } else {
+                                    configs.minor_size
+                                },
+                            screen_point.y,
+                        ),
+                        Vector2::new(
+                            screen_point.x
+                                + if ticks.major {
+                                    configs.major_size
+                                } else {
+                                    configs.minor_size
+                                },
+                            screen_point.y,
+                        ),
+                        configs.color,
+                    );
+                }
+            }
+            Visibility::Invisible => {}
+        }
+    }
+
+    fn data_bounds(&self) -> DataBBox {
+        self.axis.data_bounds()
+    }
+}
+
+impl Themable for TickLabelsConfig {
+    fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
+        self.color = scheme.axis;
     }
 }

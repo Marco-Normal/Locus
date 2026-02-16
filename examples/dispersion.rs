@@ -9,8 +9,9 @@ use locus::{
     colorscheme::GITHUB_DARK,
     graph::{Graph, GraphBuilder},
     plottable::{
-        line::{Axis, AxisConfigsBuilder},
+        line::{Axis, AxisConfigsBuilder, TickLabels, TickLabelsBuilder},
         scatter::{ScatterPlot, ScatterPlotBuilder},
+        ticks::Scale,
         view::Viewport,
     },
     plotter::PlotElement,
@@ -62,6 +63,7 @@ fn main() {
         0.01,
         15,
     );
+    let ticks_1 = TickLabels::new(axis);
 
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&rl_thread);
@@ -80,6 +82,14 @@ fn main() {
                 .axis_configs(
                     AxisConfigsBuilder::default()
                         .strip_x_arrow()
+                        .color(colorscheme.axis)
+                        .build()
+                        .unwrap(),
+                )
+                .ticks(ticks_1)
+                .ticks_configs(
+                    TickLabelsBuilder::default()
+                        .with_x_scale(Scale::Linear)
                         .color(colorscheme.axis)
                         .build()
                         .unwrap(),
