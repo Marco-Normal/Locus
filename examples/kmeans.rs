@@ -7,7 +7,7 @@ use common::{KMeans, KMeansPlotBuilder, MakeCirclesBuilder, make_circles};
 use locus::{
     HEIGHT, WIDTH,
     colorscheme::GITHUB_DARK,
-    graph::{Graph, GraphBuilder},
+    graph::{ConfiguredElement, Graph, GraphBuilder},
     plottable::{
         line::{Axis, GridLines, Orientation, Separation},
         view::Viewport,
@@ -57,8 +57,8 @@ fn main() {
     let graph = Graph::new(kmeans_plot);
     let graph_config: locus::graph::GraphConfig<common::KMeansPlot<'_>> = GraphBuilder::default()
         .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
-        .grid(grid_lines)
-        .axis(axis)
+        .grid(ConfiguredElement::with_defaults(grid_lines))
+        .axis(ConfiguredElement::with_defaults(axis))
         .subject_configs(KMeansPlotBuilder::default().build().unwrap())
         .colorscheme(colorscheme.clone())
         .build()

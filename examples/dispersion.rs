@@ -7,9 +7,9 @@ use common::{make_circles, make_moons};
 use locus::{
     HEIGHT, WIDTH,
     colorscheme::GITHUB_DARK,
-    graph::{Graph, GraphBuilder},
+    graph::{ConfiguredElement, Graph, GraphBuilder},
     plottable::{
-        line::{Axis, AxisConfigsBuilder, TickLabels, TickLabelsBuilder},
+        line::{Axis, TickLabels, Visibility},
         scatter::{ScatterPlot, ScatterPlotBuilder},
         ticks::Scale,
         view::Viewport,
@@ -71,29 +71,22 @@ fn main() {
         g1.plot(
             &mut d,
             &GraphBuilder::default()
-                .viewport(Viewport::new(
-                    10.0,
-                    10.0,
-                    (WIDTH / 2) as f32,
-                    (HEIGHT - 15) as f32,
-                ))
+                .viewport(
+                    Viewport::new(10.0, 10.0, (WIDTH / 2) as f32, (HEIGHT - 15) as f32)
+                        .with_margins(locus::plottable::view::Margins {
+                            left: 40.0,
+                            right: 10.0,
+                            top: 10.0,
+                            bottom: 30.0,
+                        }),
+                )
                 .colorscheme(colorscheme.clone())
-                .axis(axis)
-                .axis_configs(
-                    AxisConfigsBuilder::default()
-                        .strip_x_arrow()
-                        .color(colorscheme.axis)
-                        .build()
-                        .unwrap(),
-                )
-                .ticks(ticks_1)
-                .ticks_configs(
-                    TickLabelsBuilder::default()
-                        .with_x_scale(Scale::Linear)
-                        .color(colorscheme.axis)
-                        .build()
-                        .unwrap(),
-                )
+                .axis(ConfiguredElement::with_defaults(axis).configure(|a| {
+                    a.x_arrow = Visibility::Invisible;
+                }))
+                .ticks(ConfiguredElement::with_defaults(ticks_1).configure(|t| {
+                    t.x_axis_scale = Scale::Linear;
+                }))
                 .subject_configs(
                     ScatterPlotBuilder::default()
                         .fixed_color(Color::RED)
@@ -107,14 +100,22 @@ fn main() {
         g2.plot(
             &mut d,
             &GraphBuilder::default()
-                .viewport(Viewport::new(
-                    (WIDTH / 2) as f32,
-                    10.0,
-                    (WIDTH / 2) as f32,
-                    (HEIGHT - 15) as f32,
-                ))
+                .viewport(
+                    Viewport::new(
+                        (WIDTH / 2) as f32,
+                        10.0,
+                        (WIDTH / 2) as f32,
+                        (HEIGHT - 15) as f32,
+                    )
+                    .with_margins(locus::plottable::view::Margins {
+                        left: 40.0,
+                        right: 10.0,
+                        top: 10.0,
+                        bottom: 30.0,
+                    }),
+                )
                 .colorscheme(colorscheme.clone())
-                .axis(axis_d2)
+                .axis(ConfiguredElement::with_defaults(axis_d2))
                 .subject_configs(
                     ScatterPlotBuilder::default()
                         .fixed_color(Color::BLUE)

@@ -2,10 +2,7 @@ use std::ops::Deref;
 
 use raylib::math::Vector2;
 
-use crate::{
-    HEIGHT, WIDTH,
-    plottable::point::{Datapoint, Screenpoint},
-};
+use crate::plottable::point::{Datapoint, Screenpoint};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BBox<P> {
@@ -91,8 +88,8 @@ impl Default for Viewport {
         Self {
             x: 0.0,
             y: 0.0,
-            width: WIDTH as f32,
-            height: HEIGHT as f32,
+            width: 800.0,
+            height: 600.0,
             margins: Margins::default(),
         }
     }

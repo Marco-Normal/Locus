@@ -42,7 +42,8 @@ impl Line {
 #[builder(default)]
 pub struct LineConfig {
     thickness: f32,
-    color: Color,
+    #[builder(setter(into, strip_option))]
+    color: Option<Color>, // Defaults means use theme's
     arrow: Visibility,
     arrow_length: f32,
     arrow_width: f32,
@@ -53,7 +54,7 @@ impl Default for LineConfig {
         let thickness = 1.5;
         Self {
             thickness,
-            color: Color::WHITE,
+            color: None,
             arrow: Visibility::Visible,
             arrow_length: 4.0 * thickness,
             arrow_width: 3.5 * thickness,
@@ -66,7 +67,12 @@ impl PlotElement for Line {
     fn plot(&self, rl: &mut RaylibDrawHandle, configs: &LineConfig) {
         match configs.arrow {
             Visibility::Visible => {
-                rl.draw_line_ex(*self.from, *self.to, configs.thickness, configs.color);
+                rl.draw_line_ex(
+                    *self.from,
+                    *self.to,
+                    configs.thickness,
+                    configs.color.unwrap_or(Color::BLACK),
+                );
                 let direction = Vector2 {
                     x: self.to.x - self.from.x,
                     y: self.to.y - self.from.y,
@@ -87,10 +93,15 @@ impl PlotElement for Line {
                     self.to.y - configs.arrow_length * direction_norm.y - configs.arrow_width * vdy,
                 );
                 let tail = Vector2::new(self.to.x, self.to.y);
-                rl.draw_triangle(p2, p1, tail, configs.color);
+                rl.draw_triangle(p2, p1, tail, configs.color.unwrap_or(Color::BLACK));
             }
             Visibility::Invisible => {
-                rl.draw_line_ex(*self.from, *self.to, configs.thickness, configs.color);
+                rl.draw_line_ex(
+                    *self.from,
+                    *self.to,
+                    configs.thickness,
+                    configs.color.unwrap_or(Color::BLACK),
+                );
             }
         }
     }
@@ -198,17 +209,18 @@ pub enum Visibility {
 #[builder(default)]
 pub struct AxisConfigs {
     #[builder(private)]
-    x_arrow: Visibility,
+    pub x_arrow: Visibility,
     #[builder(private)]
-    y_arrow: Visibility,
+    pub y_arrow: Visibility,
     #[builder(private)]
-    x_axis: Visibility,
+    pub x_axis: Visibility,
     #[builder(private)]
-    y_axis: Visibility,
-    arrow_length: f32,
-    arrow_width: f32,
-    color: Color,
-    thickness: f32,
+    pub y_axis: Visibility,
+    pub arrow_length: f32,
+    pub arrow_width: f32,
+    #[builder(setter(into, strip_option))]
+    pub color: Option<Color>, // Defaults means use theme's
+    pub thickness: f32,
 }
 
 impl AxisConfigsBuilder {
@@ -278,7 +290,7 @@ impl Default for AxisConfigs {
             x_axis: Visibility::Visible,
             y_axis: Visibility::Visible,
             arrow_length: 4.0 * thickness,
-            color: Color::WHITE,
+            color: None,
             thickness,
             arrow_width: 4.0 * thickness,
         }
@@ -347,7 +359,12 @@ impl ChartElement for Axis {
 
 impl Themable for AxisConfigs {
     fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
-        self.color = scheme.axis;
+        match &self.color {
+            Some(_) => {}
+            None => {
+                self.color = Some(scheme.axis);
+            }
+        }
     }
 }
 
@@ -397,16 +414,17 @@ impl GridLines {
 #[builder(pattern = "owned")]
 #[builder(default)]
 pub struct GridLinesConfig {
-    color: Color,
-    alpha: f32,
-    thickness: f32,
-    max_ticks: usize,
+    #[builder(setter(strip_option, into))]
+    pub color: Option<Color>, // None means default
+    pub alpha: f32,
+    pub thickness: f32,
+    pub max_ticks: usize,
 }
 
 impl Default for GridLinesConfig {
     fn default() -> Self {
         Self {
-            color: Color::WHITE,
+            color: None,
             alpha: 0.3,
             thickness: 1.0,
             max_ticks: 10,
@@ -431,7 +449,7 @@ impl GridLines {
         let start = view.to_screen(&Datapoint::new(data_x, data_y_start));
         let end = view.to_screen(&Datapoint::new(data_x, data_y_end));
 
-        let color = config.color.alpha(config.alpha);
+        let color = config.color.unwrap_or(Color::BLACK).alpha(config.alpha);
         rl.draw_line_ex(*start, *end, config.thickness, color);
     }
 
@@ -448,7 +466,7 @@ impl GridLines {
         let start = view.to_screen(&Datapoint::new(data_x_start, data_y));
         let end = view.to_screen(&Datapoint::new(data_x_end, data_y));
 
-        let color = config.color.alpha(config.alpha);
+        let color = config.color.unwrap_or(Color::BLACK).alpha(config.alpha);
         rl.draw_line_ex(*start, *end, config.thickness, color);
     }
 
@@ -530,7 +548,10 @@ impl ChartElement for GridLines {
 
 impl Themable for GridLinesConfig {
     fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
-        self.color = scheme.grid;
+        match &self.color {
+            Some(_) => {}
+            None => self.color = Some(scheme.grid),
+        }
     }
 }
 
@@ -540,6 +561,7 @@ pub struct TickLabels {
 }
 
 impl TickLabels {
+    #[must_use]
     pub fn new(axis: Axis) -> Self {
         Self { axis }
     }
@@ -549,20 +571,21 @@ impl TickLabels {
 #[builder(pattern = "owned")]
 #[builder(default, name = "TickLabelsBuilder")]
 pub struct TickLabelsConfig {
-    color: Color,
-    alpha: f32,
-    major_size: f32,
-    minor_size: f32,
-    max_ticks: usize,
-    separation: Separation,
+    #[builder(setter(strip_option, into))]
+    pub color: Option<Color>, // None means theme's
+    pub alpha: f32,
+    pub major_size: f32,
+    pub minor_size: f32,
+    pub max_ticks: usize,
+    pub separation: Separation,
     #[builder(private)]
-    x_axis: Visibility,
+    pub x_axis: Visibility,
     #[builder(default = "Scale::Linear", private)]
-    x_axis_scale: Scale, // Only matter if x axis is visible, else is ignored
+    pub x_axis_scale: Scale, // Only matter if x axis is visible, else is ignored
     #[builder(private)]
-    y_axis: Visibility,
+    pub y_axis: Visibility,
     #[builder(default = "Scale::Linear", private)]
-    y_axis_scale: Scale, // Only matter if y axis is visible, else is ignored
+    pub y_axis_scale: Scale, // Only matter if y axis is visible, else is ignored
 }
 
 impl TickLabelsBuilder {
@@ -594,19 +617,34 @@ impl TickLabelsBuilder {
             ..self
         }
     }
+    #[must_use]
+    pub fn strip_x_axis(self) -> Self {
+        Self {
+            x_axis: Some(Visibility::Invisible),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn strip_y_axis(self) -> Self {
+        Self {
+            y_axis: Some(Visibility::Invisible),
+            ..self
+        }
+    }
 }
 
 impl Default for TickLabelsConfig {
     fn default() -> Self {
         Self {
-            color: Color::WHITE,
-            alpha: 0.3,
-            major_size: 5.0,
-            minor_size: 3.0,
+            color: None,
+            alpha: 1.0,
+            major_size: 7.0,
+            minor_size: 5.0,
             max_ticks: 10,
             separation: Separation::Auto,
-            x_axis: Visibility::Invisible,
-            y_axis: Visibility::Invisible,
+            x_axis: Visibility::Visible,
+            y_axis: Visibility::Visible,
             x_axis_scale: Scale::Linear, // Do not matter as x axis is invisible
             y_axis_scale: Scale::Linear,
         }
@@ -635,17 +673,12 @@ impl ChartElement for TickLabels {
                     },
                 );
                 for ticks in tickset.ticks {
+                    if !(data_bounds.minimum.x..data_bounds.maximum.x).contains(&ticks.value) {
+                        continue;
+                    }
                     let screen_point = view.to_screen(&(ticks.value, data_bounds.minimum.y).into());
                     rl.draw_line_v(
-                        Vector2::new(
-                            screen_point.x,
-                            screen_point.y
-                                - if ticks.major {
-                                    configs.major_size
-                                } else {
-                                    configs.minor_size
-                                },
-                        ),
+                        Vector2::new(screen_point.x, screen_point.y),
                         Vector2::new(
                             screen_point.x,
                             screen_point.y
@@ -655,7 +688,7 @@ impl ChartElement for TickLabels {
                                     configs.minor_size
                                 },
                         ),
-                        configs.color,
+                        configs.color.unwrap_or(Color::BLACK),
                     );
                 }
             }
@@ -674,7 +707,10 @@ impl ChartElement for TickLabels {
                     },
                 );
                 for ticks in tickset.ticks {
-                    let screen_point = view.to_screen(&(ticks.value, data_bounds.minimum.x).into());
+                    if !(data_bounds.minimum.y..data_bounds.maximum.y).contains(&ticks.value) {
+                        continue;
+                    }
+                    let screen_point = view.to_screen(&(data_bounds.minimum.x, ticks.value).into());
                     rl.draw_line_v(
                         Vector2::new(
                             screen_point.x
@@ -685,16 +721,8 @@ impl ChartElement for TickLabels {
                                 },
                             screen_point.y,
                         ),
-                        Vector2::new(
-                            screen_point.x
-                                + if ticks.major {
-                                    configs.major_size
-                                } else {
-                                    configs.minor_size
-                                },
-                            screen_point.y,
-                        ),
-                        configs.color,
+                        Vector2::new(screen_point.x, screen_point.y),
+                        configs.color.unwrap_or(Color::BLACK),
                     );
                 }
             }
@@ -707,8 +735,12 @@ impl ChartElement for TickLabels {
     }
 }
 
+/// Follows the color of the axis
 impl Themable for TickLabelsConfig {
     fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
-        self.color = scheme.axis;
+        match &self.color {
+            Some(_) => {}
+            None => self.color = Some(scheme.axis),
+        }
     }
 }
