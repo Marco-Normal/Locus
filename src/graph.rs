@@ -216,7 +216,6 @@ where
         self.ticks = Some(val.into());
         self
     }
-    // ── Title ────────────────────────────────────────────────────
     /// Set the chart title with sensible defaults (large, top-centre).
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
@@ -249,7 +248,6 @@ where
         self
     }
 
-    // ── X-axis label ─────────────────────────────────────────────
     /// Set the x-axis label with sensible defaults (centred below the plot).
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
@@ -279,7 +277,6 @@ where
         self
     }
 
-    // ── Y-axis label ─────────────────────────────────────────────
     /// Set the y-axis label with sensible defaults (centred, rotated -90°).
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
@@ -311,7 +308,6 @@ where
         self
     }
 
-    // ── Legend ────────────────────────────────────────────────────
     /// Add a legend with default styling.
     #[must_use]
     pub fn legend(mut self, entries: Vec<LegendEntry>) -> Self {
@@ -324,11 +320,7 @@ where
 
     /// Add a legend with customised configuration.
     #[must_use]
-    pub fn legend_styled(
-        mut self,
-        entries: Vec<LegendEntry>,
-        f: impl FnOnce(&mut Legend),
-    ) -> Self {
+    pub fn legend_styled(mut self, entries: Vec<LegendEntry>, f: impl FnOnce(&mut Legend)) -> Self {
         let mut leg = Legend {
             entries,
             ..Legend::default()
@@ -338,7 +330,6 @@ where
         self
     }
 
-    // ── Annotations ──────────────────────────────────────────────
     /// Add a data-space annotation.
     #[must_use]
     pub fn annotate(
@@ -353,10 +344,7 @@ where
 
     /// Add a data-space annotation with customised style.
     #[must_use]
-    pub fn annotate_styled(
-        mut self,
-        annotation: Annotation,
-    ) -> Self {
+    pub fn annotate_styled(mut self, annotation: Annotation) -> Self {
         self.annotations.push(annotation);
         self
     }
@@ -466,7 +454,6 @@ where
             ticks.draw(rl, &view);
         }
 
-        // ── Text elements (title, xlabel, ylabel) ────────────────
         let outer = screen.outer_bbox();
         let inner = screen.inner_bbox();
 
@@ -497,12 +484,10 @@ where
             style.draw(rl, text, origin);
         }
 
-        // ── Legend ────────────────────────────────────────────────
         if let Some(legend) = &configs.legend {
             legend.draw(rl, &inner);
         }
 
-        // ── Annotations ──────────────────────────────────────────
         for ann in &configs.annotations {
             ann.draw(rl, &view);
         }

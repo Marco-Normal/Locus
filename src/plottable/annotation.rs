@@ -2,18 +2,19 @@
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 
-use raylib::{color::Color, prelude::RaylibDraw};
+use raylib::color::Color;
 
 use crate::{
+    Anchor,
     colorscheme::Themable,
     plottable::{
+        line::{Line, LineConfigBuilder},
         point::{Datapoint, Screenpoint},
-        text::{Anchor, TextStyle},
+        text::TextStyle,
         view::ViewTransformer,
     },
+    plotter::PlotElement,
 };
-
-// ── Annotation position ──────────────────────────────────────────────
 
 /// Where the annotation text is placed.
 #[derive(Debug, Clone, Copy)]
@@ -23,8 +24,6 @@ pub enum AnnotationPosition {
     /// Position in screen coordinates.
     Screen(Screenpoint),
 }
-
-// ── Arrow configuration ──────────────────────────────────────────────
 
 /// Visual properties for an optional leader line between the annotation
 /// text and a data point.
@@ -45,9 +44,23 @@ impl ArrowConfig {
             thickness: 1.5,
         }
     }
+    #[must_use]
+    pub fn with_color(self, color: Color) -> Self {
+        Self {
+            color: Some(color),
+            ..self
+        }
+    }
+    #[must_use]
+    pub fn with_thickness(self, thickness: f32) -> Self {
+        Self { thickness, ..self }
+    }
+    #[must_use]
+    pub fn configure(mut self, f: impl FnOnce(&mut Self)) -> Self {
+        f(&mut self);
+        self
+    }
 }
-
-// ── Annotation ───────────────────────────────────────────────────────
 
 /// A text annotation placed at a specific location, optionally with a
 /// leader line to a data point.
@@ -64,6 +77,13 @@ pub struct Annotation {
     pub arrow: Option<ArrowConfig>,
 }
 
+// #[derive(Clone, Builder)]
+// #[builder(pattern = "owned")]
+// pub struct AnnotationConfigs {
+//     #[builder(default = "TextStyle::default()")]
+//     #[builder(default = "None", setter(strip_option))]
+// }
+
 impl Annotation {
     /// Create an annotation at a data-space position.
     #[must_use]
@@ -73,7 +93,10 @@ impl Annotation {
             position: AnnotationPosition::Data(point.into()),
             style: TextStyle {
                 font_size: 14.0,
-                anchor: Anchor::CENTER_BOTTOM,
+                alpha: 1.0,
+                color: Some(Color::WHITE),
+                spacing: 1.0,
+                anchor: Anchor::CENTER,
                 ..TextStyle::default()
             },
             arrow: None,
@@ -88,21 +111,20 @@ impl Annotation {
             position: AnnotationPosition::Screen(point.into()),
             style: TextStyle {
                 font_size: 14.0,
-                anchor: Anchor::CENTER_BOTTOM,
+                alpha: 1.0,
+                color: Some(Color::WHITE),
+                spacing: 1.0,
                 ..TextStyle::default()
             },
             arrow: None,
         }
     }
-
-    /// Attach a leader-line arrow pointing to a data point.
     #[must_use]
     pub fn with_arrow(mut self, arrow: ArrowConfig) -> Self {
         self.arrow = Some(arrow);
         self
     }
 
-    /// Replace the text style.
     #[must_use]
     pub fn with_style(mut self, style: TextStyle) -> Self {
         self.style = style;
@@ -110,11 +132,7 @@ impl Annotation {
     }
 
     /// Draw the annotation.  Needs a `ViewTransformer` to resolve data positions.
-    pub fn draw(
-        &self,
-        rl: &mut raylib::prelude::RaylibDrawHandle,
-        view: &ViewTransformer,
-    ) {
+    pub fn draw(&self, rl: &mut raylib::prelude::RaylibDrawHandle, view: &ViewTransformer) {
         let origin = match self.position {
             AnnotationPosition::Data(dp) => view.to_screen(&dp),
             AnnotationPosition::Screen(sp) => sp,
@@ -124,7 +142,17 @@ impl Annotation {
         if let Some(arrow) = &self.arrow {
             let target_screen = view.to_screen(&arrow.target);
             let color = arrow.color.unwrap_or_else(|| self.style.effective_color());
-            rl.draw_line_ex(*origin, *target_screen, arrow.thickness, color);
+            // self.style.get_anchors_offset(&self.text);
+            let line = Line::new(*origin, *target_screen);
+            line.plot(
+                rl,
+                &LineConfigBuilder::default()
+                    .color(color)
+                    .thickness(arrow.thickness)
+                    .arrow(crate::plottable::line::Visibility::Visible)
+                    .build()
+                    .unwrap(),
+            );
         }
 
         self.style.draw(rl, &self.text, origin);
@@ -136,8 +164,15 @@ impl Themable for Annotation {
         self.style.apply_theme(scheme);
         if let Some(arrow) = &mut self.arrow
             && arrow.color.is_none()
+            && self.style.color.is_none()
         {
             arrow.color = Some(scheme.text);
+        }
+        if let Some(arrow) = &mut self.arrow
+            && arrow.color.is_none()
+            && !self.style.color.is_none()
+        {
+            arrow.color = self.style.color;
         }
     }
 }

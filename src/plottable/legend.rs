@@ -14,8 +14,6 @@ use crate::{
     },
 };
 
-// ── Legend position ──────────────────────────────────────────────────
-
 /// Where to anchor the legend relative to the inner plotting area.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum LegendPosition {
@@ -27,8 +25,6 @@ pub enum LegendPosition {
     /// Custom screen-space coordinates (top-left corner of the legend box).
     Custom(f32, f32),
 }
-
-// ── Legend entry ─────────────────────────────────────────────────────
 
 /// A single row in the legend: colour swatch + label.
 #[derive(Debug, Clone)]
@@ -54,8 +50,6 @@ impl LegendEntry {
         self
     }
 }
-
-// ── Legend ────────────────────────────────────────────────────────────
 
 /// A drawable legend that pairs colour swatches with text labels.
 ///
@@ -113,18 +107,13 @@ impl Default for Legend {
 impl Legend {
     /// Draw the legend in screen space, positioned relative to `inner_bbox`.
     #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
-    pub fn draw(
-        &self,
-        rl: &mut raylib::prelude::RaylibDrawHandle,
-        inner_bbox: &ScreenBBox,
-    ) {
+    pub fn draw(&self, rl: &mut raylib::prelude::RaylibDrawHandle, inner_bbox: &ScreenBBox) {
         if self.entries.is_empty() {
             return;
         }
 
         let default_font = rl.get_font_default();
-
-        // ── Measure all entries to compute legend box size ────────
+        // Measure all entries to compute legend box size
         let row_height = self.label_style.font_size;
         let n = self.entries.len();
         let total_height = self.padding * 2.0
@@ -139,7 +128,7 @@ impl Legend {
         let total_width =
             self.padding * 2.0 + self.indicator_size + self.indicator_gap + max_label_width;
 
-        // ── Compute top-left of the legend box ───────────────────
+        // Compute top-left of the legend box
         let (box_x, box_y) = match self.position {
             LegendPosition::TopRight => (
                 inner_bbox.maximum.x - total_width - 4.0,
@@ -157,7 +146,7 @@ impl Legend {
             LegendPosition::Custom(x, y) => (x, y),
         };
 
-        // ── Background ───────────────────────────────────────────
+        // Background
         if let Some(bg) = self.background {
             rl.draw_rectangle_v(
                 Vector2::new(box_x, box_y),
@@ -166,7 +155,7 @@ impl Legend {
             );
         }
 
-        // ── Border ───────────────────────────────────────────────
+        // Border
         if let Some((border_color, thickness)) = self.border {
             rl.draw_rectangle_lines_ex(
                 raylib::ffi::Rectangle {
@@ -180,7 +169,7 @@ impl Legend {
             );
         }
 
-        // ── Entries ──────────────────────────────────────────────
+        // Entries
         for (i, entry) in self.entries.iter().enumerate() {
             let row_y = box_y + self.padding + (i as f32) * (row_height + self.entry_spacing);
             let swatch_x = box_x + self.padding;
@@ -214,12 +203,9 @@ impl Legend {
                     );
                 }
             }
-
             // Draw label text
-            let text_origin = Screenpoint::new(
-                swatch_x + self.indicator_size + self.indicator_gap,
-                row_y,
-            );
+            let text_origin =
+                Screenpoint::new(swatch_x + self.indicator_size + self.indicator_gap, row_y);
             self.label_style.draw(rl, &entry.label, text_origin);
         }
     }
