@@ -1,3 +1,5 @@
+pub mod annotation;
+pub mod legend;
 pub mod line;
 pub mod point;
 pub mod scatter;
@@ -59,13 +61,16 @@ pub(crate) mod common {
         let val_max = (max / step).ceil() * step;
         (val_min, val_max, step)
     }
+    /// Tick data returned by [`log_spacing`].
+    pub(crate) type LogSpacingResult = (f32, f32, Vec<f32>, Option<Vec<f32>>);
+
     /// Returns a tuple composed of (min_val, max_val, ticks, minor_ticks)
     pub(crate) fn log_spacing(
         min: f32,
         max: f32,
         base: f32,
         include_minor: bool,
-    ) -> Option<(f32, f32, Vec<f32>, Option<Vec<f32>>)> {
+    ) -> Option<LogSpacingResult> {
         let low = min.min(max);
         let high = min.max(max);
         match (base.partial_cmp(&1.0), high.partial_cmp(&0.0)) {
@@ -96,10 +101,10 @@ pub(crate) mod common {
                             if minor_max >= 3 {
                                 for m in 2..minor_max {
                                     let minor_val = (m as f32) * base.powi(exponent);
-                                    if (low..high).contains(&minor_val) {
-                                        if let Some(ref mut minor_ticks) = minor_ticks {
-                                            minor_ticks.push(minor_val);
-                                        };
+                                    if (low..high).contains(&minor_val)
+                                        && let Some(ref mut minor_ticks) = minor_ticks
+                                    {
+                                        minor_ticks.push(minor_val);
                                     }
                                 }
                             }

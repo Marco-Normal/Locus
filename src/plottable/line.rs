@@ -11,7 +11,8 @@ use crate::{
     colorscheme::Themable,
     plottable::{
         common::{get_spacing, nice_number},
-        point::Datapoint,
+        point::{Datapoint, Screenpoint},
+        text::{Anchor, TextStyle},
         ticks::{Scale, TickSet, TickSpec},
         view::{DataBBox, ViewTransformer},
     },
@@ -567,7 +568,7 @@ impl TickLabels {
     }
 }
 
-#[derive(Debug, Clone, Copy, Builder)]
+#[derive(Debug, Clone, Builder)]
 #[builder(pattern = "owned")]
 #[builder(default, name = "TickLabelsBuilder")]
 pub struct TickLabelsConfig {
@@ -586,6 +587,16 @@ pub struct TickLabelsConfig {
     pub y_axis: Visibility,
     #[builder(default = "Scale::Linear", private)]
     pub y_axis_scale: Scale, // Only matter if y axis is visible, else is ignored
+
+    // ── Tick label text ──────────────────────────────────────────
+    /// Whether to draw the tick value text next to the marks.
+    pub show_labels: bool,
+    /// Visual style for tick-label text. Themed via `Colorscheme.text`.
+    pub label_style: TextStyle,
+    /// Gap (px) between the end of the tick mark and the start of the label.
+    pub label_offset: f32,
+    /// Rotation in degrees for x-axis tick labels (e.g. 45° for long labels).
+    pub label_rotation: f32,
 }
 
 impl TickLabelsBuilder {
@@ -645,8 +656,21 @@ impl Default for TickLabelsConfig {
             separation: Separation::Auto,
             x_axis: Visibility::Visible,
             y_axis: Visibility::Visible,
-            x_axis_scale: Scale::Linear, // Do not matter as x axis is invisible
+            x_axis_scale: Scale::Linear,
             y_axis_scale: Scale::Linear,
+            show_labels: true,
+            label_style: TextStyle {
+                font_size: 14.0,
+                alpha: 1.0,
+                color: None,
+                spacing: 1.0,
+                font: None,
+                anchor: Anchor::TOP_CENTER,
+                rotation: 0.0,
+                offset: Vector2::new(0.0, 0.0),
+            },
+            label_offset: 4.0,
+            label_rotation: 0.0,
         }
     }
 }
@@ -672,24 +696,33 @@ impl ChartElement for TickLabels {
                         separation: configs.separation,
                     },
                 );
-                for ticks in tickset.ticks {
-                    if !(data_bounds.minimum.x..data_bounds.maximum.x).contains(&ticks.value) {
+                for tick in &tickset.ticks {
+                    if !(data_bounds.minimum.x..data_bounds.maximum.x).contains(&tick.value) {
                         continue;
                     }
-                    let screen_point = view.to_screen(&(ticks.value, data_bounds.minimum.y).into());
+                    let screen_point = view.to_screen(&(tick.value, data_bounds.minimum.y).into());
+                    let mark_len = if tick.major {
+                        configs.major_size
+                    } else {
+                        configs.minor_size
+                    };
                     rl.draw_line_v(
                         Vector2::new(screen_point.x, screen_point.y),
-                        Vector2::new(
-                            screen_point.x,
-                            screen_point.y
-                                + if ticks.major {
-                                    configs.major_size
-                                } else {
-                                    configs.minor_size
-                                },
-                        ),
+                        Vector2::new(screen_point.x, screen_point.y + mark_len),
                         configs.color.unwrap_or(Color::BLACK),
                     );
+
+                    // Draw tick label text (major ticks only, unless label is non-empty)
+                    if configs.show_labels && tick.major && !tick.label.is_empty() {
+                        let mut style = configs.label_style.clone();
+                        style.anchor = Anchor::TOP_CENTER;
+                        style.rotation = configs.label_rotation;
+                        let origin = Screenpoint::new(
+                            screen_point.x,
+                            screen_point.y + mark_len + configs.label_offset,
+                        );
+                        style.draw(rl, &tick.label, origin);
+                    }
                 }
             }
             Visibility::Invisible => {}
@@ -706,24 +739,32 @@ impl ChartElement for TickLabels {
                         separation: configs.separation,
                     },
                 );
-                for ticks in tickset.ticks {
-                    if !(data_bounds.minimum.y..data_bounds.maximum.y).contains(&ticks.value) {
+                for tick in &tickset.ticks {
+                    if !(data_bounds.minimum.y..data_bounds.maximum.y).contains(&tick.value) {
                         continue;
                     }
-                    let screen_point = view.to_screen(&(data_bounds.minimum.x, ticks.value).into());
+                    let screen_point = view.to_screen(&(data_bounds.minimum.x, tick.value).into());
+                    let mark_len = if tick.major {
+                        configs.major_size
+                    } else {
+                        configs.minor_size
+                    };
                     rl.draw_line_v(
-                        Vector2::new(
-                            screen_point.x
-                                - if ticks.major {
-                                    configs.major_size
-                                } else {
-                                    configs.minor_size
-                                },
-                            screen_point.y,
-                        ),
+                        Vector2::new(screen_point.x - mark_len, screen_point.y),
                         Vector2::new(screen_point.x, screen_point.y),
                         configs.color.unwrap_or(Color::BLACK),
                     );
+
+                    // Draw tick label text
+                    if configs.show_labels && tick.major && !tick.label.is_empty() {
+                        let mut style = configs.label_style.clone();
+                        style.anchor = Anchor::RIGHT_MIDDLE;
+                        let origin = Screenpoint::new(
+                            screen_point.x - mark_len - configs.label_offset,
+                            screen_point.y,
+                        );
+                        style.draw(rl, &tick.label, origin);
+                    }
                 }
             }
             Visibility::Invisible => {}
@@ -735,12 +776,12 @@ impl ChartElement for TickLabels {
     }
 }
 
-/// Follows the color of the axis
+/// Follows the color of the axis for tick marks; themes label text via `colorscheme.text`.
 impl Themable for TickLabelsConfig {
     fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
-        match &self.color {
-            Some(_) => {}
-            None => self.color = Some(scheme.axis),
+        if self.color.is_none() {
+            self.color = Some(scheme.axis);
         }
+        self.label_style.apply_theme(scheme);
     }
 }
