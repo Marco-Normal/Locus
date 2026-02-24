@@ -2,11 +2,12 @@
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 use crate::{
+    TextLabel,
     colorscheme::{Colorscheme, Themable},
     plottable::{
         annotation::Annotation,
-        legend::{Legend, LegendEntry},
-        line::{Axis, GridLines, TickLabels},
+        legend::{Legend, LegendConfig, LegendEntry},
+        line::{Axis, AxisConfigs, GridLines, GridLinesConfig, TickLabels, TickLabelsConfig},
         text::{Anchor, TextStyle, TextStyleBuilder},
         view::{ScreenBBox, ViewTransformer, Viewport},
     },
@@ -34,18 +35,14 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct ConfiguredElement<E>
-where
-    E: ChartElement,
-{
+pub struct ConfiguredElement<E, C> {
     pub(crate) element: E,
-    pub(crate) configs: E::Config,
+    pub(crate) configs: C,
 }
 
-impl<E> ConfiguredElement<E>
+impl<E, C> ConfiguredElement<E, C>
 where
-    E: ChartElement,
-    <E as ChartElement>::Config: Default + Themable,
+    C: Default + Themable,
 {
     pub fn new(element: E, configs: E::Config) -> Self {
         Self { element, configs }
@@ -55,18 +52,18 @@ where
     }
 }
 
-impl<E: ChartElement> Themable for ConfiguredElement<E>
+impl<E, C> Themable for ConfiguredElement<E, C>
 where
-    E::Config: Themable,
+    C: Themable,
 {
     fn apply_theme(&mut self, scheme: &Colorscheme) {
         self.configs.apply_theme(scheme);
     }
 }
 
-impl<E: ChartElement> ConfiguredElement<E>
+impl<E, C> ConfiguredElement<E, C>
 where
-    E::Config: Default,
+    C: Default,
 {
     /// Create with default configuration.
     pub fn with_defaults(element: E) -> Self {
@@ -77,10 +74,10 @@ where
     }
 }
 
-impl<E: ChartElement> ConfiguredElement<E> {
+impl<E, C> ConfiguredElement<E, C> {
     /// Modify the config via a closure, returning self for chaining.
     #[must_use]
-    pub fn configure(mut self, f: impl FnOnce(&mut E::Config)) -> Self {
+    pub fn configure(mut self, f: impl FnOnce(&mut C)) -> Self {
         f(&mut self.configs);
         self
     }
@@ -96,14 +93,14 @@ where
 {
     subject_configs: T::Config,
     viewport: Viewport,
-    axis: Option<ConfiguredElement<Axis>>,
-    grid: Option<ConfiguredElement<GridLines>>,
+    axis: Option<ConfiguredElement<Axis, AxisConfigs>>,
+    grid: Option<ConfiguredElement<GridLines, GridLinesConfig>>,
     colorscheme: Colorscheme,
-    ticks: Option<ConfiguredElement<TickLabels>>,
-    title: Option<(String, TextStyle)>,
-    xlabel: Option<(String, TextStyle)>,
-    ylabel: Option<(String, TextStyle)>,
-    legend: Option<Legend>,
+    ticks: Option<ConfiguredElement<TickLabels, TickLabelsConfig>>,
+    title: Option<ConfiguredElement<TextLabel, TextStyle>>,
+    xlabel: Option<ConfiguredElement<TextLabel, TextStyle>>,
+    ylabel: Option<ConfiguredElement<TextLabel, TextStyle>>,
+    legend: Option<ConfiguredElement<Legend, LegendConfig>>,
     annotations: Vec<Annotation>,
 }
 
@@ -142,14 +139,14 @@ where
 {
     subject_configs: Option<T::Config>,
     viewport: Option<Viewport>,
-    axis: Option<ConfiguredElement<Axis>>,
-    grid: Option<ConfiguredElement<GridLines>>,
+    axis: Option<ConfiguredElement<Axis, AxisConfigs>>,
+    grid: Option<ConfiguredElement<GridLines, GridLinesConfig>>,
     colorscheme: Option<Colorscheme>,
-    ticks: Option<ConfiguredElement<TickLabels>>,
-    title: Option<(String, TextStyle)>,
-    xlabel: Option<(String, TextStyle)>,
-    ylabel: Option<(String, TextStyle)>,
-    legend: Option<Legend>,
+    ticks: Option<ConfiguredElement<TickLabels, TickLabelsConfig>>,
+    title: Option<ConfiguredElement<TextLabel, TextStyle>>,
+    xlabel: Option<ConfiguredElement<TextLabel, TextStyle>>,
+    ylabel: Option<ConfiguredElement<TextLabel, TextStyle>>,
+    legend: Option<ConfiguredElement<Legend, LegendConfig>>,
     annotations: Vec<Annotation>,
 }
 
@@ -194,13 +191,13 @@ where
     }
 
     #[must_use]
-    pub fn axis(mut self, val: impl Into<ConfiguredElement<Axis>>) -> Self {
+    pub fn axis(mut self, val: impl Into<ConfiguredElement<Axis, AxisConfigs>>) -> Self {
         self.axis = Some(val.into());
         self
     }
 
     #[must_use]
-    pub fn grid(mut self, val: impl Into<ConfiguredElement<GridLines>>) -> Self {
+    pub fn grid(mut self, val: impl Into<ConfiguredElement<GridLines, GridLinesConfig>>) -> Self {
         self.grid = Some(val.into());
         self
     }
@@ -212,7 +209,10 @@ where
     }
 
     #[must_use]
-    pub fn ticks(mut self, val: impl Into<ConfiguredElement<TickLabels>>) -> Self {
+    pub fn ticks(
+        mut self,
+        val: impl Into<ConfiguredElement<TickLabels, TickLabelsConfig>>,
+    ) -> Self {
         self.ticks = Some(val.into());
         self
     }
@@ -225,6 +225,7 @@ where
             .anchor(Anchor::TOP_CENTER)
             .build()
             .unwrap();
+        let label = TextLabel::new(text, position)
         self.title = Some((text.into(), style));
         self
     }

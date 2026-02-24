@@ -3,15 +3,21 @@
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 
 use derive_builder::Builder;
-use raylib::{color::Color, math::Vector2, prelude::RaylibDraw};
+use raylib::{
+    color::Color,
+    math::{Rectangle, Vector2},
+    prelude::RaylibDraw,
+    text::WeakFont,
+};
 
 use crate::{
+    TextLabel,
     colorscheme::Themable,
     plottable::{
-        point::{Screenpoint, Shape},
-        text::{Anchor, TextStyle},
-        view::ScreenBBox,
+        point::{PointConfigBuilder, Screenpoint, Shape},
+        text::TextStyle,
     },
+    plotter::{ChartElement, PlotElement},
 };
 
 /// Where to anchor the legend relative to the inner plotting area.
@@ -55,11 +61,14 @@ impl LegendEntry {
 ///
 /// Constructed via `LegendBuilder` and added to a `Graph` with
 /// `.legend(entries)` or `.legend_styled(entries, |c| ...)`.
+#[derive(Default, Clone, Debug)]
+pub struct Legend {
+    pub entries: Vec<LegendEntry>,
+}
+
 #[derive(Debug, Clone, Builder)]
 #[builder(pattern = "owned")]
-pub struct Legend {
-    #[builder(default)]
-    pub entries: Vec<LegendEntry>,
+pub struct LegendConfig {
     #[builder(default)]
     pub position: LegendPosition,
     #[builder(default)]
@@ -84,83 +93,66 @@ pub struct Legend {
     pub border: Option<(Color, f32)>,
 }
 
-impl Default for Legend {
-    fn default() -> Self {
-        Self {
-            entries: Vec::new(),
-            position: LegendPosition::default(),
-            label_style: TextStyle {
-                font_size: 14.0,
-                anchor: Anchor::TOP_LEFT,
-                ..TextStyle::default()
-            },
-            background: Some(Color::new(0, 0, 0, 140)),
-            padding: 8.0,
-            entry_spacing: 4.0,
-            indicator_size: 8.0,
-            indicator_gap: 6.0,
-            border: None,
-        }
-    }
-}
+impl ChartElement for Legend {
+    type Config = LegendConfig;
 
-impl Legend {
-    /// Draw the legend in screen space, positioned relative to `inner_bbox`.
-    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
-    pub fn draw(&self, rl: &mut raylib::prelude::RaylibDrawHandle, inner_bbox: &ScreenBBox) {
+    fn draw_in_view(
+        &self,
+        rl: &mut raylib::prelude::RaylibDrawHandle,
+        configs: &Self::Config,
+        view: &super::view::ViewTransformer,
+    ) {
         if self.entries.is_empty() {
             return;
         }
 
-        let default_font = rl.get_font_default();
-        // Measure all entries to compute legend box size
-        let row_height = self.label_style.font_size;
-        let n = self.entries.len();
-        let total_height = self.padding * 2.0
-            + (n as f32) * row_height
-            + ((n.saturating_sub(1)) as f32) * self.entry_spacing;
-
-        let mut max_label_width: f32 = 0.0;
-        for entry in &self.entries {
-            let size = self.label_style.measure_text(&entry.label, &default_font);
-            max_label_width = max_label_width.max(size.x);
-        }
-        let total_width =
-            self.padding * 2.0 + self.indicator_size + self.indicator_gap + max_label_width;
-
-        // Compute top-left of the legend box
-        let (box_x, box_y) = match self.position {
-            LegendPosition::TopRight => (
-                inner_bbox.maximum.x - total_width - 4.0,
-                inner_bbox.minimum.y + 4.0,
-            ),
-            LegendPosition::TopLeft => (inner_bbox.minimum.x + 4.0, inner_bbox.minimum.y + 4.0),
-            LegendPosition::BottomRight => (
-                inner_bbox.maximum.x - total_width - 4.0,
-                inner_bbox.maximum.y - total_height - 4.0,
-            ),
-            LegendPosition::BottomLeft => (
-                inner_bbox.minimum.x + 4.0,
-                inner_bbox.maximum.y - total_height - 4.0,
-            ),
-            LegendPosition::Custom(x, y) => (x, y),
+        let font: &WeakFont = match &configs.label_style.font {
+            Some(fh) => &fh.font,
+            None => &rl.get_font_default(),
         };
 
-        // Background
-        if let Some(bg) = self.background {
-            rl.draw_rectangle_v(
-                Vector2::new(box_x, box_y),
-                Vector2::new(total_width, total_height),
-                bg,
-            );
+        let row_height = configs.label_style.font_size;
+        let n = self.entries.len();
+        let total_height = configs.padding * 2.0
+            + (n as f32) * row_height
+            + ((n.saturating_sub(1)) as f32) * configs.entry_spacing;
+        let mut max_label_width: f32 = 0.0;
+        for entry in &self.entries {
+            let size = configs.label_style.measure_text(&entry.label, &font);
+            max_label_width = max_label_width.max(size.x);
         }
 
-        // Border
-        if let Some((border_color, thickness)) = self.border {
+        let total_width = configs.padding * 2.0
+            + configs.indicator_size
+            + configs.indicator_gap
+            + max_label_width;
+
+        let inner_bbox = view.screen_bounds.inner_bbox();
+
+        let legend_box: Vector2 = match configs.position {
+            LegendPosition::TopRight => {
+                (inner_bbox.maximum.x - total_width, inner_bbox.minimum.y).into()
+            }
+            LegendPosition::TopLeft => (inner_bbox.minimum.x, inner_bbox.minimum.y).into(),
+            LegendPosition::BottomRight => (
+                inner_bbox.maximum.x - total_width,
+                inner_bbox.maximum.y - total_height,
+            )
+                .into(),
+            LegendPosition::BottomLeft => {
+                (inner_bbox.minimum.x, inner_bbox.maximum.y - total_height).into()
+            }
+            LegendPosition::Custom(x, y) => (x, y).into(),
+        };
+
+        if let Some(bg) = configs.background {
+            rl.draw_rectangle_v(legend_box, Vector2::new(total_width, total_height), bg);
+        }
+        if let Some((border_color, thickness)) = configs.border {
             rl.draw_rectangle_lines_ex(
-                raylib::ffi::Rectangle {
-                    x: box_x,
-                    y: box_y,
+                Rectangle {
+                    x: legend_box.x,
+                    y: legend_box.y,
                     width: total_width,
                     height: total_height,
                 },
@@ -169,49 +161,37 @@ impl Legend {
             );
         }
 
-        // Entries
         for (i, entry) in self.entries.iter().enumerate() {
-            let row_y = box_y + self.padding + (i as f32) * (row_height + self.entry_spacing);
-            let swatch_x = box_x + self.padding;
+            let row_y =
+                legend_box.y + configs.padding + (i as f32) * (row_height + configs.entry_spacing);
+            let swatch_x = legend_box.x + configs.padding;
             let swatch_cy = row_y + row_height * 0.5;
-
-            // Draw colour indicator
-            match entry.shape {
-                Shape::Circle => {
-                    rl.draw_circle(
-                        swatch_x as i32 + (self.indicator_size * 0.5) as i32,
-                        swatch_cy as i32,
-                        self.indicator_size * 0.5,
-                        entry.color,
-                    );
-                }
-                Shape::Rectangle => {
-                    rl.draw_rectangle_v(
-                        Vector2::new(swatch_x, swatch_cy - self.indicator_size * 0.5),
-                        Vector2::new(self.indicator_size, self.indicator_size),
-                        entry.color,
-                    );
-                }
-                Shape::Triangle => {
-                    let cx = swatch_x + self.indicator_size * 0.5;
-                    let half = self.indicator_size * 0.5;
-                    rl.draw_triangle(
-                        Vector2::new(cx, swatch_cy - half),
-                        Vector2::new(cx - half, swatch_cy + half),
-                        Vector2::new(cx + half, swatch_cy + half),
-                        entry.color,
-                    );
-                }
-            }
+            let point = Screenpoint::new(swatch_x, swatch_cy);
+            point.plot(
+                rl,
+                &PointConfigBuilder::default()
+                    .color(entry.color)
+                    .shape(entry.shape)
+                    .size(configs.indicator_size)
+                    .build()
+                    .unwrap(),
+            );
             // Draw label text
-            let text_origin =
-                Screenpoint::new(swatch_x + self.indicator_size + self.indicator_gap, row_y);
-            self.label_style.draw(rl, &entry.label, text_origin);
+            let text_origin = Screenpoint::new(
+                swatch_x + configs.indicator_size + configs.indicator_gap,
+                row_y,
+            );
+            let label = TextLabel::new(&entry.label, text_origin);
+            label.plot(rl, &configs.label_style);
         }
+    }
+
+    fn data_bounds(&self) -> super::view::DataBBox {
+        unimplemented!("Doesn't make sense for legend")
     }
 }
 
-impl Themable for Legend {
+impl Themable for LegendConfig {
     fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
         self.label_style.apply_theme(scheme);
     }

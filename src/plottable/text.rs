@@ -13,7 +13,7 @@ use raylib::{
     text::{RaylibFont, WeakFont},
 };
 
-use crate::{colorscheme::Themable, plottable::point::Screenpoint};
+use crate::{colorscheme::Themable, plottable::point::Screenpoint, plotter::PlotElement};
 
 #[derive(Debug, Clone, Copy)]
 pub enum HAlign {
@@ -65,46 +65,20 @@ impl Anchor {
 /// Given an anchor-point and text box size (pixels),
 /// return top-left draw position in screen space.
 #[must_use]
-pub fn anchor_text_top_left(
-    origin: Screenpoint,
-    text_w: f32,
-    text_h: f32,
-    anchor: Anchor,
-    offset_x: f32,
-    offset_y: f32,
-) -> Screenpoint {
-    let mut x = origin.x;
-    let mut y = origin.y;
-
-    match anchor.h {
-        HAlign::Left => {}
-        HAlign::Center => x -= text_w * 0.5,
-        HAlign::Right => x -= text_w,
-    }
-
-    match anchor.v {
-        VAlign::Top => {}
-        VAlign::Middle => y -= text_h * 0.5,
-        VAlign::Bottom => y -= text_h,
-    }
-
-    Screenpoint::new(x + offset_x, y + offset_y)
-}
-
-#[must_use]
-pub fn get_anchors_offset(text_h: f32, text_w: f32, anchor: Anchor) -> Vector2 {
+pub fn anchor_text_top_left(text_specs: Vector2, anchor: Anchor, offsets: Vector2) -> Vector2 {
     let x = match anchor.h {
         HAlign::Left => 0.0,
-        HAlign::Center => text_w * 0.5,
-        HAlign::Right => text_w,
+        HAlign::Center => text_specs.x * 0.5,
+        HAlign::Right => text_specs.y,
     };
 
     let y = match anchor.v {
         VAlign::Top => 0.0,
-        VAlign::Middle => text_h * 0.5,
-        VAlign::Bottom => text_h,
+        VAlign::Middle => text_specs.y * 0.5,
+        VAlign::Bottom => text_specs.y,
     };
-    Vector2::new(x, y)
+
+    Vector2::new(x, y) + offsets
 }
 
 /// Shared, cloneable handle to a raylib font.
@@ -114,7 +88,7 @@ pub fn get_anchors_offset(text_h: f32, text_w: f32, anchor: Anchor) -> Vector2 {
 /// lifetime friction.
 #[derive(Clone)]
 pub struct FontHandle {
-    font: Rc<WeakFont>,
+    pub(crate) font: Rc<WeakFont>,
 }
 
 impl std::fmt::Debug for FontHandle {
@@ -227,51 +201,10 @@ impl TextStyle {
             None => default_font.measure_text(text, self.font_size, self.spacing),
         }
     }
-    // #[must_use]
-    // pub fn get_anchors_offset(&self, text: &str) -> Vector2 {
-    //     self.measure_text(text, default_font)
-    // }
     /// Resolve the effective drawing colour (user-set or theme fallback).
     #[must_use]
     pub fn effective_color(&self) -> Color {
         self.color.unwrap_or(Color::BLACK).alpha(self.alpha)
-    }
-
-    /// Draw `text` at `origin` (screen-space) using this style.
-    ///
-    /// Handles anchoring, offset, rotation, colour, and font fallback.
-    pub fn draw(&self, rl: &mut RaylibDrawHandle, text: &str, origin: Screenpoint) {
-        let default_font = rl.get_font_default();
-        let font: &WeakFont = match &self.font {
-            Some(fh) => &fh.font,
-            None => &default_font,
-        };
-        let size = self.measure_text(text, &font);
-        let tl = anchor_text_top_left(
-            origin,
-            size.x,
-            size.y,
-            self.anchor,
-            self.offset.x,
-            self.offset.y,
-        );
-        let color = self.effective_color();
-        if self.rotation.abs() < f32::EPSILON {
-            // Fast path — no rotation
-            rl.draw_text_ex(font, text, *tl, self.font_size, self.spacing, color);
-        } else {
-            // draw_text_pro rotates around `origin` (relative to `position`)
-            rl.draw_text_pro(
-                font,
-                text,
-                *tl,
-                Vector2::new(0.0, 0.0),
-                self.rotation,
-                self.font_size,
-                self.spacing,
-                color,
-            );
-        }
     }
 }
 
@@ -290,31 +223,52 @@ impl Themable for TextStyle {
 pub struct TextLabel {
     pub text: String,
     pub position: Screenpoint,
-    pub style: TextStyle,
 }
 
 impl TextLabel {
     #[must_use]
-    pub fn new(
-        text: impl Into<String>,
-        position: impl Into<Screenpoint>,
-        style: TextStyle,
-    ) -> Self {
+    pub fn new(text: impl Into<String>, position: impl Into<Screenpoint>) -> Self {
         Self {
             text: text.into(),
             position: position.into(),
-            style,
         }
-    }
-
-    /// Convenience: draw without going through the `PlotElement` trait.
-    pub fn draw(&self, rl: &mut RaylibDrawHandle) {
-        self.style.draw(rl, &self.text, self.position);
     }
 }
 
-impl Themable for TextLabel {
-    fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
-        self.style.apply_theme(scheme);
+impl PlotElement for TextLabel {
+    type Config = TextStyle;
+
+    fn plot(&self, rl: &mut RaylibDrawHandle, configs: &Self::Config) {
+        let default_font = rl.get_font_default();
+        let font: &WeakFont = match &configs.font {
+            Some(fh) => &fh.font,
+            None => &default_font,
+        };
+        let size = configs.measure_text(&self.text, &font);
+        let tl = anchor_text_top_left(size, configs.anchor, configs.offset);
+        let color = configs.effective_color();
+        if configs.rotation.abs() < f32::EPSILON {
+            // Fast path — no rotation
+            rl.draw_text_ex(
+                font,
+                &self.text,
+                tl + *self.position,
+                configs.font_size,
+                configs.spacing,
+                color,
+            );
+        } else {
+            // draw_text_pro rotates around `origin` (relative to `position`)
+            rl.draw_text_pro(
+                font,
+                &self.text,
+                tl + *self.position,
+                Vector2::new(0.0, 0.0),
+                configs.rotation,
+                configs.font_size,
+                configs.spacing,
+                color,
+            );
+        }
     }
 }

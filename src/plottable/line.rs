@@ -8,6 +8,7 @@ use derive_builder::Builder;
 use raylib::prelude::*;
 
 use crate::{
+    TextLabel,
     colorscheme::Themable,
     plottable::{
         common::{get_spacing, nice_number},
@@ -42,12 +43,12 @@ impl Line {
 #[builder(pattern = "owned")]
 #[builder(default)]
 pub struct LineConfig {
-    thickness: f32,
+    pub thickness: f32,
     #[builder(setter(into, strip_option))]
-    color: Option<Color>, // Defaults means use theme's
-    arrow: Visibility,
-    arrow_length: f32,
-    arrow_width: f32,
+    pub color: Option<Color>, // Defaults means use theme's
+    pub arrow: Visibility,
+    pub arrow_length: f32, // Only matters if arrow is visible
+    pub arrow_width: f32,  // Only matters if arrow is visible
 }
 
 impl Default for LineConfig {
@@ -721,7 +722,8 @@ impl ChartElement for TickLabels {
                             screen_point.x,
                             screen_point.y + mark_len + configs.label_offset,
                         );
-                        style.draw(rl, &tick.label, origin);
+                        let text = TextLabel::new(&tick.label, origin);
+                        text.plot(rl, &style);
                     }
                 }
             }
@@ -763,7 +765,8 @@ impl ChartElement for TickLabels {
                             screen_point.x - mark_len - configs.label_offset,
                             screen_point.y,
                         );
-                        style.draw(rl, &tick.label, origin);
+                        let text = TextLabel::new(&tick.label, origin);
+                        text.plot(rl, &style);
                     }
                 }
             }
