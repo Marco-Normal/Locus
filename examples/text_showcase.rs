@@ -103,12 +103,7 @@ fn main() {
                         c.line = Some(
                             AnnotLineConfigBuilder::default()
                                 .target((0.0, 0.0).into())
-                                .line(
-                                    LineConfigBuilder::default()
-                                        .arrow(locus::plottable::line::Visibility::Visible)
-                                        .build()
-                                        .unwrap(),
-                                )
+                                .arrow(locus::plottable::line::Visibility::Visible)
                                 .build()
                                 .unwrap(),
                         )

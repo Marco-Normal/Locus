@@ -3,12 +3,13 @@
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 
 use derive_builder::Builder;
+use raylib::color::Color;
 
 use crate::{
     TextLabel,
     colorscheme::Themable,
     plottable::{
-        line::{Line, LineConfig, LineConfigBuilder},
+        line::{Line, LineConfigBuilder, Visibility},
         point::{Datapoint, Screenpoint},
         text::TextStyle,
         view::ViewTransformer,
@@ -41,8 +42,17 @@ pub struct Annotation {
 #[derive(Clone, Debug, Builder)]
 #[builder(pattern = "owned")]
 pub struct AnnotLineConfig {
-    line: LineConfig,
-    target: Datapoint,
+    #[builder(default = "1.5")]
+    pub thickness: f32,
+    #[builder(setter(into, strip_option), default = "None")]
+    pub color: Option<Color>, // Defaults means use theme's
+    #[builder(default = "Visibility::Visible")]
+    pub arrow: Visibility,
+    #[builder(default = "4.0 * 1.5")]
+    pub arrow_length: f32, // Only matters if arrow is visible
+    #[builder(default = "3.5 * 1.5")]
+    pub arrow_width: f32, // Only matters if arrow is visible
+    pub target: Datapoint,
 }
 
 #[derive(Debug, Clone, Builder)]
@@ -77,10 +87,11 @@ impl AnnotationConfigBuilder {
             Self {
                 line: Some(Some(AnnotLineConfig {
                     target: target.into(),
-                    line: LineConfigBuilder::default()
-                        .arrow(super::line::Visibility::Visible)
-                        .build()
-                        .unwrap(),
+                    thickness: 1.5,
+                    color: None,
+                    arrow: Visibility::Visible,
+                    arrow_length: 1.5,
+                    arrow_width: 1.5,
                 })),
                 ..self
             }
@@ -158,10 +169,19 @@ impl ChartElement for Annotation {
         };
 
         // Draw leader line first (under text).
-        if let Some(line_configs) = &configs.line {
-            let target_screen = view.to_screen(&line_configs.target);
+        if let Some(annot_line_configs) = &configs.line {
+            let target_screen = view.to_screen(&annot_line_configs.target);
             let line = Line::new(*origin, *target_screen);
-            line.plot(rl, &line_configs.line);
+            let mut line_configs = LineConfigBuilder::default()
+                .arrow_width(annot_line_configs.arrow_width)
+                .thickness(annot_line_configs.thickness)
+                .arrow_length(annot_line_configs.arrow_length)
+                .arrow(annot_line_configs.arrow)
+                .build()
+                .unwrap();
+            line_configs.color = annot_line_configs.color;
+            dbg!(line_configs);
+            line.plot(rl, &line_configs);
         }
         let text = TextLabel::new(&self.text, origin);
         text.plot(rl, &configs.style);
@@ -176,16 +196,16 @@ impl Themable for AnnotationConfig {
     fn apply_theme(&mut self, scheme: &crate::colorscheme::Colorscheme) {
         self.style.apply_theme(scheme);
         if let Some(line_configs) = &mut self.line
-            && line_configs.line.color.is_none()
+            && line_configs.color.is_none()
             && self.style.color.is_none()
         {
-            line_configs.line.color = Some(scheme.text);
+            line_configs.color = Some(scheme.text);
         }
         if let Some(line_configs) = &mut self.line
-            && line_configs.line.color.is_none()
+            && line_configs.color.is_none()
             && !self.style.color.is_none()
         {
-            line_configs.line.color = self.style.color;
+            line_configs.color = self.style.color;
         }
     }
 }
