@@ -5,11 +5,12 @@
 mod common;
 use common::{MakeCirclesBuilder, make_circles};
 use locus::{
-    Annotation, ArrowConfig, HEIGHT, LegendEntry, TextStyle, WIDTH,
+    Annotation, HEIGHT, LegendEntry, TextStyle, WIDTH,
     colorscheme::GITHUB_DARK,
     graph::{ConfiguredElement, Graph, GraphBuilder},
     plottable::{
-        line::{Axis, GridLines, Orientation, TickLabels},
+        annotation::{AnnotLineConfig, AnnotLineConfigBuilder, AnnotationConfig},
+        line::{Axis, GridLines, LineConfigBuilder, Orientation, TickLabels},
         point::Shape,
         scatter::{ScatterPlot, ScatterPlotBuilder},
         ticks::Scale,
@@ -79,9 +80,11 @@ fn main() {
                     axis,
                     Orientation::default(),
                 )))
-                .ticks(ConfiguredElement::with_defaults(ticks).configure(|t| {
-                    t.x_axis_scale = Scale::Linear;
-                }))
+                .ticks(ConfiguredElement::with_defaults(ticks).configure(
+                    |t: &mut locus::plottable::line::TickLabelsConfig| {
+                        t.x_axis_scale = Scale::Linear;
+                    },
+                ))
                 // Chart title
                 .title("Circle Dispersion")
                 // Axis labels
@@ -95,13 +98,21 @@ fn main() {
                 ])
                 // Annotation with an arrow pointing to the origin
                 .annotate_styled(
-                    Annotation::at_data("Origin (0,0)", (1.0_f32, 1.0_f32))
-                        .with_arrow(ArrowConfig::new((0.0_f32, 0.0_f32)))
-                        .with_style(TextStyle {
-                            font_size: 16.0,
-                            color: Some(Color::YELLOW),
-                            ..TextStyle::default()
-                        }),
+                    Annotation::at_data("Origin (0,0)", (1.0_f32, 1.0_f32)),
+                    |c: &mut AnnotationConfig| {
+                        c.line = Some(
+                            AnnotLineConfigBuilder::default()
+                                .target((0.0, 0.0).into())
+                                .line(
+                                    LineConfigBuilder::default()
+                                        .arrow(locus::plottable::line::Visibility::Visible)
+                                        .build()
+                                        .unwrap(),
+                                )
+                                .build()
+                                .unwrap(),
+                        )
+                    },
                 )
                 // Subject rendering config
                 .subject_configs(

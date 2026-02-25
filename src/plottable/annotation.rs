@@ -54,6 +54,15 @@ pub struct AnnotationConfig {
     pub line: Option<AnnotLineConfig>,
 }
 
+impl Default for AnnotationConfig {
+    fn default() -> Self {
+        Self {
+            style: TextStyle::default(),
+            line: None,
+        }
+    }
+}
+
 impl AnnotationConfigBuilder {
     fn with_target(self, target: impl Into<Datapoint>) -> Self {
         if let Some(Some(line)) = self.line {

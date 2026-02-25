@@ -68,14 +68,14 @@ impl Anchor {
 pub fn anchor_text_top_left(text_specs: Vector2, anchor: Anchor, offsets: Vector2) -> Vector2 {
     let x = match anchor.h {
         HAlign::Left => 0.0,
-        HAlign::Center => text_specs.x * 0.5,
-        HAlign::Right => text_specs.y,
+        HAlign::Center => -text_specs.x * 0.5,
+        HAlign::Right => -text_specs.x,
     };
 
     let y = match anchor.v {
         VAlign::Top => 0.0,
-        VAlign::Middle => text_specs.y * 0.5,
-        VAlign::Bottom => text_specs.y,
+        VAlign::Middle => -text_specs.y * 0.5,
+        VAlign::Bottom => -text_specs.y,
     };
 
     Vector2::new(x, y) + offsets
@@ -252,7 +252,7 @@ impl PlotElement for TextLabel {
             rl.draw_text_ex(
                 font,
                 &self.text,
-                tl + *self.position,
+                *self.position + tl,
                 configs.font_size,
                 configs.spacing,
                 color,
@@ -262,7 +262,7 @@ impl PlotElement for TextLabel {
             rl.draw_text_pro(
                 font,
                 &self.text,
-                tl + *self.position,
+                *self.position + tl,
                 Vector2::new(0.0, 0.0),
                 configs.rotation,
                 configs.font_size,

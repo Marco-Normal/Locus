@@ -11,11 +11,11 @@ use raylib::{
 };
 
 use crate::{
-    TextLabel,
+    Anchor, TextLabel,
     colorscheme::Themable,
     plottable::{
         point::{PointConfigBuilder, Screenpoint, Shape},
-        text::TextStyle,
+        text::{TextStyle, TextStyleBuilder},
     },
     plotter::{ChartElement, PlotElement},
 };
@@ -93,6 +93,30 @@ pub struct LegendConfig {
     pub border: Option<(Color, f32)>,
 }
 
+impl Default for LegendConfig {
+    fn default() -> Self {
+        Self {
+            position: LegendPosition::default(),
+            label_style: TextStyleBuilder::default()
+                .font_size(14.0)
+                .anchor(Anchor::TOP_LEFT)
+                .build()
+                .unwrap(),
+            background: Some(Color {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 140,
+            }),
+            padding: 8.0,
+            entry_spacing: 4.0,
+            indicator_size: 8.0,
+            indicator_gap: 6.0,
+            border: None,
+        }
+    }
+}
+
 impl ChartElement for Legend {
     type Config = LegendConfig;
 
@@ -144,6 +168,27 @@ impl ChartElement for Legend {
             }
             LegendPosition::Custom(x, y) => (x, y).into(),
         };
+        // let legend_box: Vector2 = match configs.position {
+        //     LegendPosition::TopRight => (
+        //         inner_bbox.maximum.x - total_width - 4.0,
+        //         inner_bbox.minimum.y - 4.0,
+        //     )
+        //         .into(),
+        //     LegendPosition::TopLeft => {
+        //         (inner_bbox.minimum.x + 4.0, inner_bbox.minimum.y + 4.0).into()
+        //     }
+        //     LegendPosition::BottomRight => (
+        //         inner_bbox.maximum.x - total_width - 4.0,
+        //         inner_bbox.maximum.y - total_height - 4.0,
+        //     )
+        //         .into(),
+        //     LegendPosition::BottomLeft => (
+        //         inner_bbox.minimum.x + 4.0,
+        //         inner_bbox.maximum.y - total_height - 4.0,
+        //     )
+        //         .into(),
+        //     LegendPosition::Custom(x, y) => (x, y).into(),
+        // };
 
         if let Some(bg) = configs.background {
             rl.draw_rectangle_v(legend_box, Vector2::new(total_width, total_height), bg);
@@ -167,20 +212,21 @@ impl ChartElement for Legend {
             let swatch_x = legend_box.x + configs.padding;
             let swatch_cy = row_y + row_height * 0.5;
             let point = Screenpoint::new(swatch_x, swatch_cy);
+            let size = match entry.shape {
+                Shape::Rectangle => configs.indicator_size,
+                _ => 0.5 * configs.indicator_size,
+            };
             point.plot(
                 rl,
                 &PointConfigBuilder::default()
                     .color(entry.color)
                     .shape(entry.shape)
-                    .size(configs.indicator_size)
+                    .size(size)
                     .build()
                     .unwrap(),
             );
             // Draw label text
-            let text_origin = Screenpoint::new(
-                swatch_x + configs.indicator_size + configs.indicator_gap,
-                row_y,
-            );
+            let text_origin = Screenpoint::new(swatch_x + configs.indicator_gap, row_y);
             let label = TextLabel::new(&entry.label, text_origin);
             label.plot(rl, &configs.label_style);
         }

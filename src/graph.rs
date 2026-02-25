@@ -5,9 +5,10 @@ use crate::{
     TextLabel,
     colorscheme::{Colorscheme, Themable},
     plottable::{
-        annotation::Annotation,
+        annotation::{Annotation, AnnotationConfig},
         legend::{Legend, LegendConfig, LegendEntry},
         line::{Axis, AxisConfigs, GridLines, GridLinesConfig, TickLabels, TickLabelsConfig},
+        point::Datapoint,
         text::{Anchor, TextStyle, TextStyleBuilder},
         view::{ScreenBBox, ViewTransformer, Viewport},
     },
@@ -42,13 +43,24 @@ pub struct ConfiguredElement<E, C> {
 
 impl<E, C> ConfiguredElement<E, C>
 where
-    C: Default + Themable,
+    E: ChartElement,
+    E: ChartElement<Config = C>,
 {
-    pub fn new(element: E, configs: E::Config) -> Self {
+    pub fn new(element: E, configs: C) -> Self {
         Self { element, configs }
     }
-    pub fn draw(&self, rl: &mut raylib::prelude::RaylibDrawHandle, view: &ViewTransformer) {
+    pub fn draw_in_view(&self, rl: &mut raylib::prelude::RaylibDrawHandle, view: &ViewTransformer) {
         self.element.draw_in_view(rl, &self.configs, view);
+    }
+}
+
+impl<E, C> ConfiguredElement<E, C>
+where
+    E: PlotElement,
+    E: PlotElement<Config = C>,
+{
+    pub fn draw(&self, rl: &mut raylib::prelude::RaylibDrawHandle) {
+        self.element.plot(rl, &self.configs);
     }
 }
 
@@ -69,7 +81,7 @@ where
     pub fn with_defaults(element: E) -> Self {
         Self {
             element,
-            configs: E::Config::default(),
+            configs: C::default(),
         }
     }
 }
@@ -101,7 +113,7 @@ where
     xlabel: Option<ConfiguredElement<TextLabel, TextStyle>>,
     ylabel: Option<ConfiguredElement<TextLabel, TextStyle>>,
     legend: Option<ConfiguredElement<Legend, LegendConfig>>,
-    annotations: Vec<Annotation>,
+    annotations: Option<Vec<ConfiguredElement<Annotation, AnnotationConfig>>>,
 }
 
 // ── Error type for GraphBuilder ──────────────────────────────────────
@@ -143,11 +155,11 @@ where
     grid: Option<ConfiguredElement<GridLines, GridLinesConfig>>,
     colorscheme: Option<Colorscheme>,
     ticks: Option<ConfiguredElement<TickLabels, TickLabelsConfig>>,
-    title: Option<ConfiguredElement<TextLabel, TextStyle>>,
-    xlabel: Option<ConfiguredElement<TextLabel, TextStyle>>,
-    ylabel: Option<ConfiguredElement<TextLabel, TextStyle>>,
+    title: Option<(String, TextStyle)>,
+    xlabel: Option<(String, TextStyle)>,
+    ylabel: Option<(String, TextStyle)>,
     legend: Option<ConfiguredElement<Legend, LegendConfig>>,
-    annotations: Vec<Annotation>,
+    annotations: Option<Vec<ConfiguredElement<Annotation, AnnotationConfig>>>,
 }
 
 impl<T> Default for GraphBuilder<T>
@@ -167,7 +179,7 @@ where
             xlabel: None,
             ylabel: None,
             legend: None,
-            annotations: Vec::new(),
+            annotations: None,
         }
     }
 }
@@ -225,7 +237,6 @@ where
             .anchor(Anchor::TOP_CENTER)
             .build()
             .unwrap();
-        let label = TextLabel::new(text, position)
         self.title = Some((text.into(), style));
         self
     }
@@ -312,46 +323,106 @@ where
     /// Add a legend with default styling.
     #[must_use]
     pub fn legend(mut self, entries: Vec<LegendEntry>) -> Self {
-        self.legend = Some(Legend {
-            entries,
-            ..Legend::default()
-        });
+        let legend = Legend { entries };
+        let element = ConfiguredElement::new(legend, LegendConfig::default());
+        self.legend = Some(element);
         self
     }
 
     /// Add a legend with customised configuration.
     #[must_use]
-    pub fn legend_styled(mut self, entries: Vec<LegendEntry>, f: impl FnOnce(&mut Legend)) -> Self {
-        let mut leg = Legend {
-            entries,
-            ..Legend::default()
-        };
-        f(&mut leg);
-        self.legend = Some(leg);
+    pub fn legend_styled(
+        mut self,
+        entries: Vec<LegendEntry>,
+        f: impl FnOnce(&mut LegendConfig),
+    ) -> Self {
+        let legend = Legend { entries };
+        let mut config = LegendConfig::default();
+        f(&mut config);
+        self.legend = Some(ConfiguredElement::new(legend, config));
         self
     }
 
     /// Add a data-space annotation.
     #[must_use]
-    pub fn annotate(
-        mut self,
-        text: impl Into<String>,
-        data_point: impl Into<crate::plottable::point::Datapoint>,
-    ) -> Self {
-        let ann = Annotation::at_data(text, data_point);
-        self.annotations.push(ann);
+    pub fn annotate(mut self, text: impl Into<String>, data_point: impl Into<Datapoint>) -> Self {
+        let annotation = Annotation::at_data(text, data_point);
+
+        if self.annotations.is_none() {
+            self.annotations = Some(Vec::new());
+        }
+        self.annotations.as_mut().map(|v| {
+            v.push(ConfiguredElement {
+                element: annotation,
+                configs: AnnotationConfig::default(),
+            })
+        });
         self
     }
 
     /// Add a data-space annotation with customised style.
     #[must_use]
-    pub fn annotate_styled(mut self, annotation: Annotation) -> Self {
-        self.annotations.push(annotation);
+    pub fn annotate_styled(
+        mut self,
+        annotation: Annotation,
+        f: impl FnOnce(&mut AnnotationConfig),
+    ) -> Self {
+        let mut configs = AnnotationConfig::default();
+        f(&mut configs);
+        if self.annotations.is_none() {
+            self.annotations = Some(Vec::new());
+        }
+        self.annotations.as_mut().map(|v| {
+            v.push(ConfiguredElement {
+                element: annotation,
+                configs,
+            })
+        });
         self
     }
 
     #[allow(clippy::missing_errors_doc)]
     pub fn build(self) -> Result<GraphConfig<T>, GraphBuilderError> {
+        let viewport = self.viewport.unwrap_or_default();
+        let inner = viewport.inner_bbox();
+        let outer = viewport.outer_bbox();
+        let title: Option<ConfiguredElement<TextLabel, TextStyle>> =
+            if let Some((text, configs)) = self.title {
+                // Centred horizontally at the top of the outer viewport, above the inner bbox.
+                let origin = crate::plottable::point::Screenpoint::new(
+                    (inner.minimum.x + inner.maximum.x) * 0.5,
+                    (outer.minimum.y + inner.minimum.y) * 0.5,
+                );
+                let element = TextLabel::new(text, origin);
+                Some(ConfiguredElement { element, configs })
+            } else {
+                None
+            };
+
+        let xlabel: Option<ConfiguredElement<TextLabel, TextStyle>> =
+            if let Some((text, configs)) = self.xlabel {
+                // Centred horizontally below the inner bbox.
+                let origin = crate::plottable::point::Screenpoint::new(
+                    (inner.minimum.x + inner.maximum.x) * 0.5,
+                    (outer.maximum.y + outer.maximum.y) * 0.5,
+                );
+                let element = TextLabel::new(text, origin);
+                Some(ConfiguredElement { element, configs })
+            } else {
+                None
+            };
+        let ylabel: Option<ConfiguredElement<TextLabel, TextStyle>> =
+            if let Some((text, configs)) = self.ylabel {
+                // Centred vertically to the left of the inner bbox.
+                let origin = crate::plottable::point::Screenpoint::new(
+                    (inner.minimum.x + inner.minimum.x) * 0.5,
+                    (inner.minimum.y + inner.maximum.y) * 0.5,
+                );
+                let element = TextLabel::new(text, origin);
+                Some(ConfiguredElement { element, configs })
+            } else {
+                None
+            };
         Ok(GraphConfig {
             subject_configs: self.subject_configs.unwrap_or_default(),
             viewport: self.viewport.unwrap_or_default(),
@@ -359,9 +430,9 @@ where
             grid: self.grid,
             colorscheme: self.colorscheme.unwrap_or_default(),
             ticks: self.ticks,
-            title: self.title,
-            xlabel: self.xlabel,
-            ylabel: self.ylabel,
+            title,
+            xlabel,
+            ylabel,
             legend: self.legend,
             annotations: self.annotations,
         }
@@ -387,20 +458,22 @@ where
         if let Some(ticks) = &mut self.ticks {
             ticks.apply_theme(&self.colorscheme);
         }
-        if let Some((_, style)) = &mut self.title {
-            style.apply_theme(&self.colorscheme);
+        if let Some(title) = &mut self.title {
+            title.apply_theme(&self.colorscheme);
         }
-        if let Some((_, style)) = &mut self.xlabel {
-            style.apply_theme(&self.colorscheme);
+        if let Some(xlabel) = &mut self.xlabel {
+            xlabel.apply_theme(&self.colorscheme);
         }
-        if let Some((_, style)) = &mut self.ylabel {
-            style.apply_theme(&self.colorscheme);
+        if let Some(ylabel) = &mut self.ylabel {
+            ylabel.apply_theme(&self.colorscheme);
         }
         if let Some(legend) = &mut self.legend {
             legend.apply_theme(&self.colorscheme);
         }
-        for ann in &mut self.annotations {
-            ann.apply_theme(&self.colorscheme);
+        if let Some(annotations) = &mut self.annotations {
+            for ann in annotations {
+                ann.apply_theme(&self.colorscheme);
+            }
         }
         self.subject_configs.apply_theme(&self.colorscheme);
         self
@@ -439,7 +512,7 @@ where
             // We have all the necessary parts for constructing the graph. With that is a job of
             // seeing what we have and what don't.
             if let Some(grid) = &configs.grid {
-                grid.draw(&mut scissors, &view);
+                grid.draw_in_view(&mut scissors, &view);
             }
 
             // We plot the subject inside the view.
@@ -449,48 +522,29 @@ where
         }
         // NOTE: Axis shouldn't be scissored, neither the ticks;
         if let Some(axis) = &configs.axis {
-            axis.draw(rl, &view);
+            axis.draw_in_view(rl, &view);
         }
         if let Some(ticks) = &configs.ticks {
-            ticks.draw(rl, &view);
+            ticks.draw_in_view(rl, &view);
         }
 
-        let outer = screen.outer_bbox();
-        let inner = screen.inner_bbox();
-
-        if let Some((text, style)) = &configs.title {
-            // Centred horizontally at the top of the outer viewport, above the inner bbox.
-            let origin = crate::plottable::point::Screenpoint::new(
-                (inner.minimum.x + inner.maximum.x) * 0.5,
-                (outer.minimum.y + inner.minimum.y) * 0.5,
-            );
-            style.draw(rl, text, origin);
+        if let Some(title) = &configs.title {
+            title.draw(rl);
         }
-
-        if let Some((text, style)) = &configs.xlabel {
-            // Centred horizontally below the inner bbox.
-            let origin = crate::plottable::point::Screenpoint::new(
-                (inner.minimum.x + inner.maximum.x) * 0.5,
-                (outer.maximum.y + outer.maximum.y) * 0.5,
-            );
-            style.draw(rl, text, origin);
+        if let Some(xlabel) = &configs.title {
+            xlabel.draw(rl);
         }
-
-        if let Some((text, style)) = &configs.ylabel {
-            // Centred vertically to the left of the inner bbox.
-            let origin = crate::plottable::point::Screenpoint::new(
-                (inner.minimum.x + inner.minimum.x) * 0.5,
-                (inner.minimum.y + inner.maximum.y) * 0.5,
-            );
-            style.draw(rl, text, origin);
+        if let Some(ylabel) = &configs.title {
+            ylabel.draw(rl);
         }
 
         if let Some(legend) = &configs.legend {
-            legend.draw(rl, &inner);
+            legend.draw_in_view(rl, &view);
         }
-
-        for ann in &configs.annotations {
-            ann.draw(rl, &view);
+        if let Some(annotations) = &configs.annotations {
+            annotations
+                .iter()
+                .for_each(|ann| ann.draw_in_view(rl, &view));
         }
     }
 }
