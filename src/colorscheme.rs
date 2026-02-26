@@ -1,23 +1,90 @@
+//! Color schemes and theming infrastructure.
+//!
+//! Every visual element in Locus can be themed through a [`Colorscheme`], which
+//! specifies colors for the background, grid lines, axis lines, text, and an
+//! ordered cycle of accent colors used by data series.
+//!
+//! The module ships with several ready-made palettes exposed as
+//! [`LazyLock`] statics:
+//!
+//! | Static | Style |
+//! |---|---|
+//! | [`DRACULA`] | Dark, high-contrast Dracula palette |
+//! | [`NORD`] | Dark, muted Arctic Nord palette |
+//! | [`VIRIDIS`] | Dark background with the Viridis perceptual ramp |
+//! | [`SOLARIZED_DARK`] | Solarized (dark variant) |
+//! | [`SOLARIZED_LIGHT`] | Solarized (light variant) |
+//! | [`GITHUB_DARK`] | GitHub-inspired dark theme |
+//! | [`GITHUB_LIGHT`] | GitHub-inspired light theme |
+//! | [`MATPLOTLIB_LIGHT`] | Classic Matplotlib / tab10 on white |
+//!
+//! # Custom themes
+//!
+//! ```rust
+//! use locus::prelude::*;
+//! use raylib::color::Color;
+//!
+//! let my_theme = Colorscheme::new(
+//!     Color::BLACK,                 // background
+//!     Color::DARKGRAY,              // grid
+//!     Color::WHITE,                 // text
+//!     Color::GRAY,                  // axis
+//!     vec![Color::RED, Color::BLUE], // cycle
+//! );
+//! ```
+//!
+//! You can also extend an existing scheme with additional accent colors using
+//! [`Colorscheme::extend`] (consuming) or [`Colorscheme::extend_in_place`]
+//! (mutating).
+
 #![allow(dead_code)]
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 use raylib::color::Color;
 use std::sync::LazyLock;
 
+/// Trait implemented by configuration types that can resolve theme-dependent
+/// defaults from a [`Colorscheme`].
+///
+/// When a configurable color field is left as `None`, calling `apply_theme`
+/// fills it with the appropriate value from the scheme (e.g. axis color, text
+/// color, or the first color in the cycle).
 pub trait Themable {
+    /// Resolve any unset color fields using `scheme`.
     fn apply_theme(&mut self, scheme: &Colorscheme);
 }
 
+/// A complete color palette for a graph.
+///
+/// A `Colorscheme` groups the five categories of color that Locus needs:
+///
+/// * `background` : the fill color behind the entire graph.
+/// * `grid`       : the color (and optional alpha) of grid lines.
+/// * `text`       : the default color for titles, labels, and tick text.
+/// * `axis`       : the color of axis lines and tick marks.
+/// * `cycle`      : an ordered list of accent colors assigned to successive
+///                  data series or clusters.
+///
+/// The [`Default`] implementation returns [`MATPLOTLIB_LIGHT`].
 #[derive(Clone, Debug)]
 pub struct Colorscheme {
+    /// Background fill color for the graph area.
     pub background: Color,
+    /// Color used for grid lines.
     pub grid: Color,
+    /// Default text color (titles, labels, tick values).
     pub text: Color,
+    /// Color of the axis lines and tick marks.
     pub axis: Color,
+    /// Ordered accent colors cycled through for data series.
     pub cycle: Vec<Color>,
 }
 
 impl Colorscheme {
+    /// Create a new color scheme from explicit values.
+    ///
+    /// `cycle` should contain at least one color; data-series drawing
+    /// functions will fall back to `Color::BLACK` if the cycle is empty.
     #[must_use]
     pub fn new(
         background: Color,
@@ -35,9 +102,13 @@ impl Colorscheme {
         }
     }
 
+    /// Append additional accent colors to `cycle` in place.
     pub fn extend_in_place(&mut self, other: Vec<Color>) {
         self.cycle.extend(other);
     }
+    /// Return a new `Colorscheme` with `other` appended to the accent cycle.
+    ///
+    /// The original scheme is consumed; all non-cycle fields are preserved.
     #[must_use]
     pub fn extend(self, other: Vec<Color>) -> Self {
         let mut cycle = self.cycle.clone();
@@ -52,6 +123,8 @@ impl Default for Colorscheme {
     }
 }
 
+/// Dark, high-contrast palette inspired by the
+/// [Dracula](https://draculatheme.com/) theme.
 pub static DRACULA: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 40,
@@ -123,6 +196,8 @@ pub static DRACULA: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         }, // Pink
     ],
 });
+/// Dark, muted palette based on the
+/// [Nord](https://www.nordtheme.com/) Arctic color scheme.
 pub static NORD: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 46,
@@ -193,6 +268,8 @@ pub static NORD: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         }, // Purple
     ],
 });
+/// Dark palette using the perceptually uniform
+/// [Viridis](https://bids.github.io/colormap/) color ramp.
 pub static VIRIDIS: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 34,
@@ -252,6 +329,8 @@ pub static VIRIDIS: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     ],
 });
 
+/// Dark variant of the [Solarized](https://ethanschoonover.com/solarized/)
+/// precision color scheme.
 pub static SOLARIZED_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 0,
@@ -329,6 +408,7 @@ pub static SOLARIZED_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme 
     ],
 });
 
+/// Dark theme inspired by [GitHub's](https://github.com/) dark mode UI.
 pub static GITHUB_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 13,
@@ -394,6 +474,10 @@ pub static GITHUB_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     ],
 });
 
+/// Classic white-background palette modelled after
+/// [Matplotlib's](https://matplotlib.org/) default `tab10` cycle.
+///
+/// This is the [`Default`] color scheme.
 pub static MATPLOTLIB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 255,
@@ -465,6 +549,8 @@ pub static MATPLOTLIB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorschem
     ],
 });
 
+/// Light variant of the [Solarized](https://ethanschoonover.com/solarized/)
+/// precision color scheme.
 pub static SOLARIZED_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 253,
@@ -530,6 +616,7 @@ pub static SOLARIZED_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme
     ],
 });
 
+/// Light theme inspired by [GitHub's](https://github.com/) light mode UI.
 pub static GITHUB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
     background: Color {
         r: 255,

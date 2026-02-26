@@ -4,20 +4,11 @@
 use std::f32;
 mod common;
 use common::{make_circles, make_moons};
-use locus::{
-    HEIGHT, WIDTH,
-    colorscheme::GITHUB_DARK,
-    graph::{ConfiguredElement, Graph, GraphBuilder},
-    plottable::{
-        line::{Axis, AxisConfigs, TickLabels, TickLabelsConfig, Visibility},
-        scatter::{ScatterPlot, ScatterPlotBuilder},
-        ticks::Scale,
-        view::Viewport,
-    },
-    plotter::PlotElement,
-};
+use locus::prelude::*;
 use raylib::prelude::*;
-
+const IMAGE_SIZE: i32 = 90;
+const WIDTH: i32 = 16 * IMAGE_SIZE;
+const HEIGHT: i32 = 9 * IMAGE_SIZE;
 use common::{MakeCirclesBuilder, MakeMoonsBuilder};
 #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 fn main() {

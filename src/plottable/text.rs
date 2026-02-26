@@ -1,3 +1,33 @@
+//! Text rendering primitives, font management, and anchor/alignment types.
+//!
+//! This module provides everything needed to place styled text on the screen:
+//!
+//! * [`TextLabel`] : a concrete string at a screen-space position,
+//!   implementing [`PlotElement`].
+//! * [`TextStyle`] : all visual and layout properties (font, size, color,
+//!   anchor, rotation, offset), built via [`TextStyleBuilder`].
+//! * [`FontHandle`] : an `Rc`-wrapped font reference that can be shared
+//!   across multiple styles without lifetime friction.
+//! * [`Anchor`] / [`HAlign`] / [`VAlign`] : positioning helpers that
+//!   control where the text's bounding box is placed relative to its
+//!   origin point.
+//!
+//! # Font loading
+//!
+//! ```rust,ignore
+//! let font = FontHandle::load(&mut rl, &thread, "assets/font.ttf", 48)?;
+//! let style = TextStyleBuilder::default()
+//!     .font(Some(font))
+//!     .font_size(24.0)
+//!     .color(Some(Color::WHITE))
+//!     .anchor(Anchor::TOP_LEFT)
+//!     .build()
+//!     .unwrap();
+//! ```
+//!
+//! When no font is loaded, raylib's built-in bitmap font is used
+//! automatically.
+
 #![allow(dead_code)]
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
@@ -15,23 +45,40 @@ use raylib::{
 
 use crate::{colorscheme::Themable, plottable::point::Screenpoint, plotter::PlotElement};
 
+/// Horizontal alignment of text relative to its origin point.
 #[derive(Debug, Clone, Copy)]
 pub enum HAlign {
+    /// Left edge of the text box aligns with the origin.
     Left,
+    /// Text is centered horizontally on the origin.
     Center,
+    /// Right edge of the text box aligns with the origin.
     Right,
 }
 
+/// Vertical alignment of text relative to its origin point.
 #[derive(Debug, Clone, Copy)]
 pub enum VAlign {
+    /// Top edge of the text box aligns with the origin.
     Top,
+    /// Text is centered vertically on the origin.
     Middle,
+    /// Bottom edge of the text box aligns with the origin.
     Bottom,
 }
 
+/// Combined horizontal and vertical alignment.
+///
+/// Several commonly used positions are provided as associated constants:
+/// [`CENTER`](Anchor::CENTER), [`TOP_CENTER`](Anchor::TOP_CENTER),
+/// [`TOP_LEFT`](Anchor::TOP_LEFT), [`RIGHT_MIDDLE`](Anchor::RIGHT_MIDDLE),
+/// [`LEFT_MIDDLE`](Anchor::LEFT_MIDDLE), and
+/// [`CENTER_BOTTOM`](Anchor::CENTER_BOTTOM).
 #[derive(Debug, Clone, Copy)]
 pub struct Anchor {
+    /// Horizontal component.
     pub h: HAlign,
+    /// Vertical component.
     pub v: VAlign,
 }
 

@@ -1,3 +1,54 @@
+//! The main graph orchestrator and its builder.
+//!
+//! [`Graph`] wraps any [`ChartElement`] and manages the surrounding chrome:
+//! axes, grid lines, tick marks, labels, legends, annotations, and the color
+//! theme. At render time it constructs a [`ViewTransformer`] from the data
+//! bounds and the configured viewport, then delegates drawing to each
+//! sub-element.
+//!
+//! Configuration is assembled via the [`GraphBuilder`], which follows the
+//! builder pattern and provides convenience methods for common tasks such as
+//! setting a title, axis labels, or adding a legend.
+//!
+//! # Example
+//!
+//! ```rust,no_run
+//! use locus::prelude::*;
+//! # let axis = Axis::fitting(0.0..10.0,0.0..10.0, 1.0,10);
+//! # let grid = GridLines::new(axis, Orientation::default());
+//! # let ticks = TickLabels::new(axis);
+//! # let my_scheme = DRACULA.clone();
+//! # let dataset = Dataset::new(vec![(0.0,0.0), (1.0,1.0), (2.0, 2.0)]);
+//! # let scatter_plot = ScatterPlot::new(&dataset);
+//! # let (mut rl, rl_thread) = raylib::init()
+//! #       .width(WIDTH)
+//! #       .height(HEIGHT)
+//! #       .title("Datasets")
+//! #       .build();
+//! # let mut draw_handle = rl.begin_drawing(&rl_thread);
+//! # const IMAGE_SIZE: i32 = 90;
+//! # const WIDTH: i32 = 16 * IMAGE_SIZE;
+//! # const HEIGHT: i32 = 9 * IMAGE_SIZE;
+//! let graph = Graph::new(scatter_plot);
+//! let config = GraphBuilder::default()
+//!     .viewport(
+//!         Viewport::new(0.0, 0.0, 800.0, 600.0)
+//!             .with_margins(Margins::all(50.0)),
+//!     )
+//!     .axis(ConfiguredElement::with_defaults(axis))
+//!     .grid(ConfiguredElement::with_defaults(grid))
+//!     .ticks(ConfiguredElement::with_defaults(ticks))
+//!     .title("My Plot")
+//!     .xlabel("X")
+//!     .ylabel("Y")
+//!     .colorscheme(my_scheme)
+//!     .build()
+//!     .unwrap();
+//!
+//! // inside the render loop:
+//! graph.plot(&mut draw_handle, &config);
+//! ```
+
 #![allow(dead_code)]
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
@@ -15,8 +66,18 @@ use crate::{
     plotter::{ChartElement, PlotElement},
 };
 use raylib::prelude::RaylibScissorModeExt;
-/// Represents a graph over `subject`, orchestrating elements such as axis, gridlines
-/// and other important pieces.
+/// Represents a graph over `subject`, orchestrating elements such as axes,
+/// grid lines, tick marks, labels, legends, and annotations.
+///
+/// `Graph` implements [`PlotElement`] so the fully assembled visualization can
+/// be drawn with a single call to [`plot`](PlotElement::plot). Internally it
+/// constructs a [`ViewTransformer`] from the subject's data bounds (or the
+/// explicit axis bounds) and the configured [`Viewport`], then renders each
+/// sub-element in the correct order (background grid, data, axes, ticks,
+/// labels, legend, annotations).
+///
+/// Configuration is provided through [`GraphConfig`], which is most
+/// conveniently built via [`GraphBuilder`].
 pub struct Graph<T>
 where
     T: ChartElement,
@@ -30,11 +91,22 @@ where
     T: ChartElement,
     <T as ChartElement>::Config: Default,
 {
+    /// Wrap a chart element so it can be rendered as a complete graph.
     pub fn new(subject: T) -> Self {
         Self { subject }
     }
 }
 
+/// A visual element paired with its configuration.
+///
+/// `ConfiguredElement` binds any drawable element (`E`) to the configuration
+/// struct (`C`) it needs at draw time. This coupling is used throughout the
+/// graph to store optional chrome elements (axis, grid, ticks, labels, etc.)
+/// together with the settings chosen by the user.
+///
+/// The struct exposes [`draw_in_view`](ConfiguredElement::draw_in_view) for
+/// data-space elements and [`draw`](ConfiguredElement::draw) for screen-space
+/// elements, forwarding to the underlying trait implementations.
 #[derive(Debug, Clone)]
 pub struct ConfiguredElement<E, C> {
     pub(crate) element: E,
@@ -46,9 +118,11 @@ where
     E: ChartElement,
     E: ChartElement<Config = C>,
 {
+    /// Create a configured element from an element and its configuration.
     pub fn new(element: E, configs: C) -> Self {
         Self { element, configs }
     }
+    /// Draw this element in data space, projecting through `view`.
     pub fn draw_in_view(&self, rl: &mut raylib::prelude::RaylibDrawHandle, view: &ViewTransformer) {
         self.element.draw_in_view(rl, &self.configs, view);
     }
@@ -59,6 +133,7 @@ where
     E: PlotElement,
     E: PlotElement<Config = C>,
 {
+    /// Draw this element directly in screen space.
     pub fn draw(&self, rl: &mut raylib::prelude::RaylibDrawHandle) {
         self.element.plot(rl, &self.configs);
     }
@@ -95,8 +170,17 @@ impl<E, C> ConfiguredElement<E, C> {
     }
 }
 
-/// Main configuration for the graph. It's possible to pass configuration from the
-/// `subject`, as well as, for axis, gridlines, offset for the graph, and bounding box.
+/// Complete, resolved configuration for a [`Graph`].
+///
+/// A `GraphConfig` holds all optional chrome elements (axis, grid, ticks,
+/// title, axis labels, legend, annotations) together with the subject's own
+/// configuration and the active [`Colorscheme`]. After construction via
+/// [`GraphBuilder::build`] the theme is automatically resolved so that every
+/// `None` color field is filled from the scheme.
+///
+/// Because resolving the theme is a pure function of the config, callers
+/// should build the config once (outside the render loop) and reuse it
+/// every frame.
 #[derive(Debug, Clone)]
 pub struct GraphConfig<T>
 where
@@ -116,9 +200,8 @@ where
     annotations: Option<Vec<ConfiguredElement<Annotation, AnnotationConfig>>>,
 }
 
-// ── Error type for GraphBuilder ──────────────────────────────────────
-
-/// Error returned when `GraphBuilder::build()` fails.
+/// Error returned when [`GraphBuilder::build`] fails due to missing or
+/// inconsistent configuration.
 #[derive(Debug, Clone)]
 pub struct GraphBuilderError(String);
 
@@ -130,17 +213,49 @@ impl std::fmt::Display for GraphBuilderError {
 
 impl std::error::Error for GraphBuilderError {}
 
-// ── GraphBuilder ─────────────────────────────────────────────────────
-
-/// Ergonomic builder for `GraphConfig`.
+/// Ergonomic builder for [`GraphConfig`].
 ///
-/// ```ignore
-/// GraphBuilder::default()
+/// All fields are optional. Omitted chrome (axis, grid, ticks, title, etc.)
+/// is simply not drawn. The builder provides both plain and `_styled`
+/// variants for text elements so that simple cases remain one-liners while
+/// full customisation is still possible.
+///
+/// # Example
+///
+/// ```rust
+/// # use locus::prelude::*;
+/// # use raylib::color::Color;
+/// # const IMAGE_SIZE: i32 = 90;
+/// # const WIDTH: i32 = 16 * IMAGE_SIZE;
+/// # const HEIGHT: i32 = 9 * IMAGE_SIZE;
+/// # let axis = Axis::fitting(0.0..10.0,0.0..10.0, 1.0,10);
+/// # let grid = GridLines::new(axis, Orientation::default());
+/// # let ticks = TickLabels::new(axis);
+/// # let scheme = DRACULA.clone();
+/// # let vp = Viewport::new(10.0, 10.0, (WIDTH / 2) as f32, (HEIGHT - 15) as f32)
+/// #                        .with_margins(Margins {
+/// #                            left: 40.0,
+/// #                            right: 10.0,
+/// #                            top: 10.0,
+/// #                            bottom: 30.0,
+/// #                        });
+/// # let entries = vec![
+/// #                    LegendEntry::new("Sample points", Color::RED),
+/// #                    LegendEntry::new("Cluster A", Color::SKYBLUE).with_shape(Shape::Rectangle),
+/// #                    LegendEntry::new("Cluster B", Color::GREEN).with_shape(Shape::Triangle),
+/// #                ];
+/// # let my_configs = ScatterPlotBuilder::default().build().unwrap();
+/// let config = GraphBuilder::default()
 ///     .viewport(vp)
-///     .axis(my_axis)
+///     .axis(ConfiguredElement::with_defaults(axis))
+///     .grid(ConfiguredElement::with_defaults(grid))
+///     .ticks(ConfiguredElement::with_defaults(ticks))
 ///     .title("My Chart")
 ///     .xlabel("X")
 ///     .ylabel("Y")
+///     .colorscheme(scheme)
+///     .legend(entries)
+///     .subject_configs(my_configs)
 ///     .build()
 ///     .unwrap();
 /// ```
@@ -190,36 +305,43 @@ where
     <T as ChartElement>::Config: Default + Themable,
 {
     // ── Original fields ──────────────────────────────────────────
+
+    /// Set the subject-specific configuration (e.g. [`ScatterPlotConfig`](crate::plottable::scatter::ScatterPlotConfig)).
     #[must_use]
     pub fn subject_configs(mut self, val: T::Config) -> Self {
         self.subject_configs = Some(val);
         self
     }
 
+    /// Set the screen-space region and margins where the graph is rendered.
     #[must_use]
     pub fn viewport(mut self, val: Viewport) -> Self {
         self.viewport = Some(val);
         self
     }
 
+    /// Add axis lines to the graph.
     #[must_use]
     pub fn axis(mut self, val: impl Into<ConfiguredElement<Axis, AxisConfigs>>) -> Self {
         self.axis = Some(val.into());
         self
     }
 
+    /// Add grid lines to the graph.
     #[must_use]
     pub fn grid(mut self, val: impl Into<ConfiguredElement<GridLines, GridLinesConfig>>) -> Self {
         self.grid = Some(val.into());
         self
     }
 
+    /// Set the color scheme used to resolve theme-dependent defaults.
     #[must_use]
     pub fn colorscheme(mut self, val: Colorscheme) -> Self {
         self.colorscheme = Some(val);
         self
     }
 
+    /// Add tick marks and optional tick labels along the axes.
     #[must_use]
     pub fn ticks(
         mut self,
@@ -381,6 +503,11 @@ where
         self
     }
 
+    /// Consume the builder and produce a fully resolved [`GraphConfig`].
+    ///
+    /// Returns an error if required fields are missing or inconsistent.
+    /// On success the returned config has all theme-dependent colors resolved,
+    /// making it safe to reuse across frames without further mutation.
     #[allow(clippy::missing_errors_doc)]
     pub fn build(self) -> Result<GraphConfig<T>, GraphBuilderError> {
         let viewport = self.viewport.unwrap_or_default();

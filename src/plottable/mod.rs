@@ -1,3 +1,23 @@
+//! Primitive visual elements and coordinate utilities.
+//!
+//! This module groups every low-level building block that Locus uses to
+//! compose a graph:
+//!
+//! | Sub-module | Contents |
+//! |---|---|
+//! | [`annotation`] | Data-space text annotations with optional leader arrows |
+//! | [`legend`] | Configurable legend box with color swatches and labels |
+//! | [`mod@line`] | Lines, axes, grid lines, tick labels, and related configs |
+//! | [`point`] | [`Datapoint`](point::Datapoint), [`Screenpoint`](point::Screenpoint), and shape primitives |
+//! | [`scatter`] | [`ScatterPlot`](scatter::ScatterPlot) with per-point dynamic attributes |
+//! | [`text`] | Text rendering primitives, font handles, and anchor/alignment types |
+//! | [`ticks`] | Tick generation for linear, logarithmic, and symmetric-log scales |
+//! | [`view`] | Bounding boxes, viewports, margins, and the [`ViewTransformer`](view::ViewTransformer) |
+//!
+//! Most users will interact with these types indirectly through the
+//! [`GraphBuilder`](crate::graph::GraphBuilder), but they are fully public
+//! for advanced use cases such as custom chart elements.
+
 pub mod annotation;
 pub mod legend;
 pub mod line;
@@ -7,6 +27,10 @@ pub mod text;
 pub mod ticks;
 pub mod view;
 
+/// Internal helpers for "nice number" rounding and tick spacing algorithms.
+///
+/// These utilities are used by the tick and grid line generators to produce
+/// human-friendly axis ranges and spacing values.
 pub(crate) mod common {
     use crate::plottable::line::Separation;
 
