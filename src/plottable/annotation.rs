@@ -180,7 +180,6 @@ impl ChartElement for Annotation {
                 .build()
                 .unwrap();
             line_configs.color = annot_line_configs.color;
-            dbg!(line_configs);
             line.plot(rl, &line_configs);
         }
         let text = TextLabel::new(&self.text, origin);

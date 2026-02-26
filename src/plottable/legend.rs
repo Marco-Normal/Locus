@@ -168,27 +168,6 @@ impl ChartElement for Legend {
             }
             LegendPosition::Custom(x, y) => (x, y).into(),
         };
-        // let legend_box: Vector2 = match configs.position {
-        //     LegendPosition::TopRight => (
-        //         inner_bbox.maximum.x - total_width - 4.0,
-        //         inner_bbox.minimum.y - 4.0,
-        //     )
-        //         .into(),
-        //     LegendPosition::TopLeft => {
-        //         (inner_bbox.minimum.x + 4.0, inner_bbox.minimum.y + 4.0).into()
-        //     }
-        //     LegendPosition::BottomRight => (
-        //         inner_bbox.maximum.x - total_width - 4.0,
-        //         inner_bbox.maximum.y - total_height - 4.0,
-        //     )
-        //         .into(),
-        //     LegendPosition::BottomLeft => (
-        //         inner_bbox.minimum.x + 4.0,
-        //         inner_bbox.maximum.y - total_height - 4.0,
-        //     )
-        //         .into(),
-        //     LegendPosition::Custom(x, y) => (x, y).into(),
-        // };
 
         if let Some(bg) = configs.background {
             rl.draw_rectangle_v(legend_box, Vector2::new(total_width, total_height), bg);
@@ -211,22 +190,40 @@ impl ChartElement for Legend {
                 legend_box.y + configs.padding + (i as f32) * (row_height + configs.entry_spacing);
             let swatch_x = legend_box.x + configs.padding;
             let swatch_cy = row_y + row_height * 0.5;
-            let point = Screenpoint::new(swatch_x, swatch_cy);
-            let size = match entry.shape {
-                Shape::Rectangle => configs.indicator_size,
-                _ => 0.5 * configs.indicator_size,
-            };
-            point.plot(
-                rl,
-                &PointConfigBuilder::default()
-                    .color(entry.color)
-                    .shape(entry.shape)
-                    .size(size)
-                    .build()
-                    .unwrap(),
-            );
+            // NOTE: Whilst we do have a point primitive where we could use it to draw the shapes, it doesn't
+            // fit the best because of how the icons should be placed. It would be best to unify the API, as
+            // the inclusion of more shapes could be reflected automatically in the legend, instead of having
+            // double code. As of right now, this is somewhat ok.
+            // TODO: Maybe unify to use the point primitive for icon drawing
+            match entry.shape {
+                Shape::Circle => {
+                    rl.draw_circle(
+                        swatch_x as i32 + (configs.indicator_size * 0.5) as i32,
+                        swatch_cy as i32,
+                        configs.indicator_size * 0.5,
+                        entry.color,
+                    );
+                }
+                Shape::Rectangle => {
+                    rl.draw_rectangle_v(
+                        Vector2::new(swatch_x, swatch_cy - configs.indicator_size * 0.5),
+                        Vector2::new(configs.indicator_size, configs.indicator_size),
+                        entry.color,
+                    );
+                }
+                Shape::Triangle => {
+                    let cx = swatch_x + configs.indicator_size * 0.5;
+                    let half = configs.indicator_size * 0.5;
+                    rl.draw_triangle(
+                        Vector2::new(cx, swatch_cy - half),
+                        Vector2::new(cx - half, swatch_cy + half),
+                        Vector2::new(cx + half, swatch_cy + half),
+                        entry.color,
+                    );
+                }
+            }
             // Draw label text
-            let text_origin = Screenpoint::new(swatch_x + configs.indicator_gap, row_y);
+            let text_origin = Screenpoint::new(swatch_x + 2.0 * configs.indicator_gap, row_y);
             let label = TextLabel::new(&entry.label, text_origin);
             label.plot(rl, &configs.label_style);
         }

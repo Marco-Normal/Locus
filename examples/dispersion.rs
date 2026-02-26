@@ -9,7 +9,7 @@ use locus::{
     colorscheme::GITHUB_DARK,
     graph::{ConfiguredElement, Graph, GraphBuilder},
     plottable::{
-        line::{Axis, TickLabels, Visibility},
+        line::{Axis, AxisConfigs, TickLabels, TickLabelsConfig, Visibility},
         scatter::{ScatterPlot, ScatterPlotBuilder},
         ticks::Scale,
         view::Viewport,
@@ -81,12 +81,16 @@ fn main() {
                         }),
                 )
                 .colorscheme(colorscheme.clone())
-                .axis(ConfiguredElement::with_defaults(axis).configure(|a| {
-                    a.x_arrow = Visibility::Invisible;
-                }))
-                .ticks(ConfiguredElement::with_defaults(ticks_1).configure(|t| {
-                    t.x_axis_scale = Scale::Linear;
-                }))
+                .axis(
+                    ConfiguredElement::with_defaults(axis).configure(|a: &mut AxisConfigs| {
+                        a.x_arrow = Visibility::Invisible;
+                    }),
+                )
+                .ticks(ConfiguredElement::with_defaults(ticks_1).configure(
+                    |t: &mut TickLabelsConfig| {
+                        t.x_axis_scale = Scale::Linear;
+                    },
+                ))
                 .subject_configs(
                     ScatterPlotBuilder::default()
                         .fixed_color(Color::RED)
