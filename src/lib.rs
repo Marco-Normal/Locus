@@ -6,3 +6,8 @@ pub mod dataset;
 pub mod graph;
 pub mod plottable;
 pub mod plotter;
+
+// ── Convenience re-exports ──────────────────────────────────────────────────
+pub use plottable::annotation::{Annotation, AnnotationPosition};
+pub use plottable::legend::{Legend, LegendEntry, LegendPosition};
+pub use plottable::text::{Anchor, FontHandle, HAlign, TextLabel, TextStyle, VAlign};
