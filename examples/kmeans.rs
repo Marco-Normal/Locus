@@ -4,19 +4,13 @@
 
 mod common;
 use common::{KMeans, KMeansPlotBuilder, MakeCirclesBuilder, make_circles};
-use locus::{
-    HEIGHT, WIDTH,
-    colorscheme::GITHUB_DARK,
-    graph::{ConfiguredElement, Graph, GraphBuilder},
-    plottable::{
-        line::{Axis, GridLines, Orientation, Separation},
-        view::Viewport,
-    },
-    plotter::PlotElement,
-};
+use locus::prelude::*;
 use raylib::prelude::*;
 use std::f32;
 
+const IMAGE_SIZE: i32 = 90;
+const WIDTH: i32 = 16 * IMAGE_SIZE;
+const HEIGHT: i32 = 9 * IMAGE_SIZE;
 const MAX_COLOR: Color = Color::RED;
 const MIN_COLOR: Color = Color::BLUE;
 
@@ -39,8 +33,6 @@ fn main() {
     let axis = Axis::fitting(
         dataset.range_min.x..dataset.range_max.x,
         dataset.range_min.y..dataset.range_max.y,
-        0.01,
-        15,
     );
 
     let grid_lines = GridLines::new(

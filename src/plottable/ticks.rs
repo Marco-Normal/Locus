@@ -1,7 +1,18 @@
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
-#![forbid(unsafe_code)]
+//! Tick generation for linear, logarithmic, and symmetric-log scales.
+//!
+//! This module implements the algorithms that produce "nice" tick positions
+//! and their formatted labels given a data range and a [`Scale`] type.
+//! The entry point is [`TickSet::generate_ticks`], which dispatches to
+//! specialised routines for each scale:
+//!
+//! * **`Linear`** : uses the "nice number" algorithm to snap step sizes to
+//!   multiples of 1, 2, or 5, producing familiar round numbers.
+//! * **`Log`** : places ticks at integer powers of the chosen base, with
+//!   optional minor ticks at integer multiples within each decade.
+//! * **`SymLog`** : combines a linear region around zero with log wings in
+//!   both the positive and negative directions, useful for data that
+//!   spans several orders of magnitude while including zero.
+
 use std::cmp::Ordering;
 
 use crate::plottable::{
@@ -9,42 +20,69 @@ use crate::plottable::{
     line::Separation,
 };
 
+/// A single tick mark along an axis.
 #[derive(Debug, Clone)]
 pub struct Tick {
-    pub value: f32,    // data units
-    pub label: String, // preformatted
-    pub major: bool,   // major/minor support for log/symlog
+    /// Position of the tick in data units.
+    pub value: f32,
+    /// Pre-formatted label string (empty for unlabelled minor ticks).
+    pub label: String,
+    /// `true` for major ticks, `false` for minor ticks (log/symlog scales).
+    pub major: bool,
 }
 
+/// The type of scale used to generate tick positions.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum Scale {
+    /// Uniform spacing between ticks (the default).
     #[default]
     Linear,
+    /// Logarithmic spacing where ticks are placed at integer powers of
+    /// `base`. When `include_minor` is `true`, additional ticks are placed
+    /// at integer multiples within each decade.
     Log {
+        /// Logarithm base (must be > 1).
         base: f32,
+        /// Whether to include minor ticks between major ones.
         include_minor: bool,
     },
+    /// Symmetric logarithmic scale: linear around zero within
+    /// `lin_threshold`, logarithmic outside.
     SymLog {
+        /// Logarithm base (must be > 1).
         base: f32,
-        lin_threshold: f32, // linear region around zero, e.g. 1.0
+        /// Half-width of the linear region centred on zero.
+        lin_threshold: f32,
+        /// Whether to include minor ticks in the log wings.
         include_minor: bool,
     },
 }
 
+/// Parameters that fully describe how to generate ticks for one axis.
 #[derive(Debug, Clone, Copy)]
 pub struct TickSpec {
+    /// The scale type (linear, log, or symlog).
     pub scale: Scale,
+    /// Maximum number of ticks to aim for.
     pub max_ticks: usize,
-    pub separation: Separation, // used by Linear only
+    /// Spacing strategy (used by the linear scale only).
+    pub separation: Separation,
 }
 
+/// The output of a tick generation pass: an optional step size and the
+/// ordered list of [`Tick`]s.
 #[derive(Debug, Clone)]
 pub struct TickSet {
-    pub step: Option<f32>, // Some for Linear
+    /// Computed step size (present for linear scales, `None` for log/symlog).
+    pub step: Option<f32>,
+    /// Ordered sequence of tick marks.
     pub ticks: Vec<Tick>,
 }
 
 impl TickSet {
+    /// Generate a set of ticks spanning `[min, max]` according to `spec`.
+    ///
+    /// Dispatches to the appropriate algorithm based on [`TickSpec::scale`].
     #[must_use]
     pub fn generate_ticks(min: f32, max: f32, spec: TickSpec) -> Self {
         match spec.scale {
@@ -67,21 +105,6 @@ impl TickSet {
     )]
     /// Generates Linear ticks that span `min` and `max`, with ticks positioned at "nice" numbers
     fn linear_ticks(min: f32, max: f32, spec: TickSpec) -> Self {
-        // let mut lo = min.min(max);
-        // let mut hi = min.max(max);
-        // if (hi - lo).abs() < f32::EPSILON {
-        //     lo -= 1.0;
-        //     hi += 1.0;
-        // }
-
-        // let n = spec.max_ticks.max(2) as f32;
-        // let step = match spec.separation {
-        //     Separation::Value(v) if v > 0.0 && v.is_finite() => v,
-        //     _ => nice_number(((hi - lo) / (n - 1.0)).max(f32::EPSILON), true),
-        // };
-
-        // let tmin = (lo / step).floor() * step;
-        // let tmax = (hi / step).ceil() * step;
         let (val_min, val_max, step) = linear_spacing(min, max, spec.max_ticks);
         let step = match spec.separation {
             Separation::Value(v) if v > 0.0 && v.is_finite() => v,
@@ -235,7 +258,7 @@ fn format_tick(v: f32, decimals: usize) -> String {
 }
 
 fn format_log_label(v: f32) -> String {
-    // Keep labels compact; you can switch to scientific notation if preferred.
+    // Keep labels compact
     if (0.01..1000.0).contains(&v) {
         format_tick(v, 6)
     } else {

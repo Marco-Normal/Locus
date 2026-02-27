@@ -1,6 +1,46 @@
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
+//! Text rendering primitives, font management, and anchor/alignment types.
+//!
+//! This module provides everything needed to place styled text on the screen:
+//!
+//! * [`TextLabel`] : a concrete string at a screen-space position,
+//!   implementing [`PlotElement`].
+//! * [`TextStyle`] : all visual and layout properties (font, size, color,
+//!   anchor, rotation, offset), built via [`TextStyleBuilder`].
+//! * [`FontHandle`] : an `Rc`-wrapped font reference that can be shared
+//!   across multiple styles without lifetime friction.
+//! * [`Anchor`] / [`HAlign`] / [`VAlign`] : positioning helpers that
+//!   control where the text's bounding box is placed relative to its
+//!   origin point.
+//!
+//! # Font loading
+//!
+//! ```rust,no_run
+//! use locus::prelude::*;
+//! use raylib::color::Color;
+//! # use std::error::Error;
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # const IMAGE_SIZE: i32 = 90;
+//! # const WIDTH: i32 = 16 * IMAGE_SIZE;
+//! # const HEIGHT: i32 = 9 * IMAGE_SIZE;
+//! # let (mut rl, thread) = raylib::init()
+//! #       .width(WIDTH)
+//! #       .height(HEIGHT)
+//! #       .title("Datasets")
+//! #       .build();
+//! let font = FontHandle::load(&mut rl, &thread, "assets/font.ttf", 48)?;
+//! let style = TextStyleBuilder::default()
+//!     .font(Some(font))
+//!     .font_size(24.0)
+//!     .color(Some(Color::WHITE))
+//!     .anchor(Anchor::TOP_LEFT)
+//!     .build()
+//!     .unwrap();
+//! #    Ok(())
+//! #    }
+//! ```
+//!
+//! When no font is loaded, raylib's built-in bitmap font is used
+//! automatically.
 
 use std::rc::Rc;
 
@@ -15,23 +55,40 @@ use raylib::{
 
 use crate::{colorscheme::Themable, plottable::point::Screenpoint, plotter::PlotElement};
 
+/// Horizontal alignment of text relative to its origin point.
 #[derive(Debug, Clone, Copy)]
 pub enum HAlign {
+    /// Left edge of the text box aligns with the origin.
     Left,
+    /// Text is centered horizontally on the origin.
     Center,
+    /// Right edge of the text box aligns with the origin.
     Right,
 }
 
+/// Vertical alignment of text relative to its origin point.
 #[derive(Debug, Clone, Copy)]
 pub enum VAlign {
+    /// Top edge of the text box aligns with the origin.
     Top,
+    /// Text is centered vertically on the origin.
     Middle,
+    /// Bottom edge of the text box aligns with the origin.
     Bottom,
 }
 
+/// Combined horizontal and vertical alignment.
+///
+/// Several commonly used positions are provided as associated constants:
+/// [`CENTER`](Anchor::CENTER), [`TOP_CENTER`](Anchor::TOP_CENTER),
+/// [`TOP_LEFT`](Anchor::TOP_LEFT), [`RIGHT_MIDDLE`](Anchor::RIGHT_MIDDLE),
+/// [`LEFT_MIDDLE`](Anchor::LEFT_MIDDLE), and
+/// [`CENTER_BOTTOM`](Anchor::CENTER_BOTTOM).
 #[derive(Debug, Clone, Copy)]
 pub struct Anchor {
+    /// Horizontal component.
     pub h: HAlign,
+    /// Vertical component.
     pub v: VAlign,
 }
 
@@ -141,7 +198,9 @@ impl FontHandle {
 /// All visual / layout properties needed to render a piece of text.
 ///
 /// Build with `TextStyleBuilder`:
-/// ```ignore
+/// ```rust
+/// use locus::prelude::*;
+/// use raylib::color::Color;
 /// let style = TextStyleBuilder::default()
 ///     .font_size(24.0)
 ///     .color(Some(Color::WHITE))
@@ -244,7 +303,7 @@ impl PlotElement for TextLabel {
             Some(fh) => &fh.font,
             None => &default_font,
         };
-        let size = configs.measure_text(&self.text, &font);
+        let size = configs.measure_text(&self.text, font);
         let tl = anchor_text_top_left(size, configs.anchor, configs.offset);
         let color = configs.effective_color();
         if configs.rotation.abs() < f32::EPSILON {

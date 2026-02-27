@@ -1,6 +1,26 @@
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
+//! Configurable legend box with color swatches and text labels.
+//!
+//! A [`Legend`] is a list of [`LegendEntry`] items rendered inside the graph
+//! viewport. Each entry shows a colored shape indicator next to a text label,
+//! making it easy for viewers to identify data series.
+//!
+//! Legends are added to a graph through
+//! [`GraphBuilder::legend`](crate::graph::GraphBuilder::legend) or
+//! [`GraphBuilder::legend_styled`](crate::graph::GraphBuilder::legend_styled).
+//!
+//! # Example
+//!
+//! ```rust
+//! use locus::prelude::*;
+//! use raylib::color::Color;
+//! # let mut builder: GraphBuilder<ScatterPlot> = GraphBuilder::default();
+//!
+//! let entries = vec![
+//!     LegendEntry::new("Cluster A", Color::RED),
+//!     LegendEntry::new("Cluster B", Color::BLUE).with_shape(Shape::Triangle),
+//! ];
+//! builder.legend(entries);
+//! ```
 
 use derive_builder::Builder;
 use raylib::{
@@ -14,33 +34,42 @@ use crate::{
     Anchor, TextLabel,
     colorscheme::Themable,
     plottable::{
-        point::{PointConfigBuilder, Screenpoint, Shape},
+        point::{Screenpoint, Shape},
         text::{TextStyle, TextStyleBuilder},
     },
     plotter::{ChartElement, PlotElement},
 };
 
-/// Where to anchor the legend relative to the inner plotting area.
+/// Where to anchor the legend box relative to the inner plotting area.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum LegendPosition {
+    /// Upper-right corner of the inner plotting area (the default).
     #[default]
     TopRight,
+    /// Upper-left corner.
     TopLeft,
+    /// Lower-right corner.
     BottomRight,
+    /// Lower-left corner.
     BottomLeft,
-    /// Custom screen-space coordinates (top-left corner of the legend box).
+    /// Arbitrary screen-space coordinates for the top-left corner of the box.
     Custom(f32, f32),
 }
 
-/// A single row in the legend: colour swatch + label.
+/// A single entry in a legend: a color swatch, indicator shape, and label.
 #[derive(Debug, Clone)]
 pub struct LegendEntry {
+    /// Display text for this entry.
     pub label: String,
+    /// Color of the shape indicator.
     pub color: Color,
+    /// Shape used for the indicator swatch.
     pub shape: Shape,
 }
 
 impl LegendEntry {
+    /// Create a legend entry with the given label and color, defaulting to a
+    /// circle indicator.
     #[must_use]
     pub fn new(label: impl Into<String>, color: Color) -> Self {
         Self {
@@ -50,6 +79,7 @@ impl LegendEntry {
         }
     }
 
+    /// Override the default circle indicator with a different shape.
     #[must_use]
     pub fn with_shape(mut self, shape: Shape) -> Self {
         self.shape = shape;
@@ -66,29 +96,33 @@ pub struct Legend {
     pub entries: Vec<LegendEntry>,
 }
 
+/// Configuration for the [`Legend`] box appearance and layout.
 #[derive(Debug, Clone, Builder)]
 #[builder(pattern = "owned")]
 pub struct LegendConfig {
+    /// Positioning anchor for the legend box.
     #[builder(default)]
     pub position: LegendPosition,
+    /// Text style for entry labels.
     #[builder(default)]
     pub label_style: TextStyle,
-    /// Semi-transparent background behind the legend box.
+    /// Semi-transparent background color behind the legend box. Set to
+    /// `None` to draw without a background.
     #[builder(default = "Some(Color::new(0, 0, 0, 140))")]
     pub background: Option<Color>,
-    /// Padding inside the background box.
+    /// Padding inside the background box in pixels.
     #[builder(default = "8.0")]
     pub padding: f32,
-    /// Vertical spacing between entries.
+    /// Vertical spacing between consecutive entries in pixels.
     #[builder(default = "4.0")]
     pub entry_spacing: f32,
-    /// Size of the colour swatch indicator.
+    /// Size of the color swatch indicator in pixels.
     #[builder(default = "8.0")]
     pub indicator_size: f32,
-    /// Gap between the swatch and the label text.
+    /// Gap between the swatch and the label text in pixels.
     #[builder(default = "6.0")]
     pub indicator_gap: f32,
-    /// Optional border around the legend box `(color, thickness)`.
+    /// Optional border as `(color, thickness)`. `None` means no border.
     #[builder(default = "None")]
     pub border: Option<(Color, f32)>,
 }
@@ -119,7 +153,7 @@ impl Default for LegendConfig {
 
 impl ChartElement for Legend {
     type Config = LegendConfig;
-
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     fn draw_in_view(
         &self,
         rl: &mut raylib::prelude::RaylibDrawHandle,
@@ -142,7 +176,7 @@ impl ChartElement for Legend {
             + ((n.saturating_sub(1)) as f32) * configs.entry_spacing;
         let mut max_label_width: f32 = 0.0;
         for entry in &self.entries {
-            let size = configs.label_style.measure_text(&entry.label, &font);
+            let size = configs.label_style.measure_text(&entry.label, font);
             max_label_width = max_label_width.max(size.x);
         }
 

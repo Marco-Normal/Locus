@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![warn(clippy::pedantic)]
 #![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
+#![no_main]
 use derive_builder::Builder;
 use rand::prelude::*;
 use raylib::math::Vector2;
@@ -8,16 +9,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 const DEFAULT_MAX_ITER: usize = 1000;
 const DEFAULT_MIN_MOV: f32 = 1e-4;
-use locus::{
-    colorscheme::{Colorscheme, Themable},
-    dataset::Dataset,
-    plottable::{
-        point::{Datapoint, PointConfigBuilder, Shape},
-        scatter::DynamicShape,
-        view::DataBBox,
-    },
-    plotter::{ChartElement, PlotElement},
-};
+use locus::prelude::*;
 #[derive(Debug)]
 struct Centroid {
     center: Datapoint,

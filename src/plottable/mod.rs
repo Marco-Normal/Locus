@@ -1,3 +1,23 @@
+//! Primitive visual elements and coordinate utilities.
+//!
+//! This module groups every low-level building block that Locus uses to
+//! compose a graph:
+//!
+//! | Sub-module | Contents |
+//! |---|---|
+//! | [`annotation`] | Data-space text annotations with optional leader arrows |
+//! | [`legend`] | Configurable legend box with color swatches and labels |
+//! | [`mod@line`] | Lines, axes, grid lines, tick labels, and related configs |
+//! | [`point`] | [`Datapoint`](point::Datapoint), [`Screenpoint`](point::Screenpoint), and shape primitives |
+//! | [`scatter`] | [`ScatterPlot`](scatter::ScatterPlot) with per-point dynamic attributes |
+//! | [`text`] | Text rendering primitives, font handles, and anchor/alignment types |
+//! | [`ticks`] | Tick generation for linear, logarithmic, and symmetric-log scales |
+//! | [`view`] | Bounding boxes, viewports, margins, and the [`ViewTransformer`](view::ViewTransformer) |
+//!
+//! Most users will interact with these types indirectly through the
+//! [`GraphBuilder`](crate::graph::GraphBuilder), but they are fully public
+//! for advanced use cases such as custom chart elements.
+
 pub mod annotation;
 pub mod legend;
 pub mod line;
@@ -7,9 +27,14 @@ pub mod text;
 pub mod ticks;
 pub mod view;
 
+/// Internal helpers for "nice number" rounding and tick spacing algorithms.
+///
+/// These utilities are used by the tick and grid line generators to produce
+/// human-friendly axis ranges and spacing values.
 pub(crate) mod common {
     use crate::plottable::line::Separation;
 
+    #[allow(clippy::cast_precision_loss)]
     pub(crate) fn get_spacing(length: f32, separation: Separation, max_ticks: usize) -> f32 {
         match separation {
             Separation::Value(v) => v,
@@ -47,6 +72,7 @@ pub(crate) mod common {
     }
     /// Returns a tuple where the first value is the minimum, the second maximum and the third
     /// the step size. Iterating from min to max by step, generates a "nicely" spaced range
+    #[allow(clippy::cast_precision_loss)]
     pub(crate) fn linear_spacing(min: f32, max: f32, max_ticks: usize) -> (f32, f32, f32) {
         let mut low = min.min(max);
         let mut high = min.max(max);
@@ -64,7 +90,8 @@ pub(crate) mod common {
     /// Tick data returned by [`log_spacing`].
     pub(crate) type LogSpacingResult = (f32, f32, Vec<f32>, Option<Vec<f32>>);
 
-    /// Returns a tuple composed of (min_val, max_val, ticks, minor_ticks)
+    /// Returns a tuple composed of (`min_val`, `max_val`, `ticks`, `minor_ticks`)
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     pub(crate) fn log_spacing(
         min: f32,
         max: f32,

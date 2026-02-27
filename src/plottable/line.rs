@@ -1,7 +1,21 @@
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
-#![forbid(unsafe_code)]
+//! Lines, axes, grid lines, tick labels, and their configurations.
+//!
+//! This module contains the foundational geometric elements that make up the
+//! chrome of a graph:
+//!
+//! * [`Line`] : a directed segment between two points, optionally with an
+//!   arrowhead.
+//! * [`Axis`] : a pair of perpendicular lines representing the x and y axes,
+//!   with automatic "nice number" range fitting.
+//! * [`GridLines`] : evenly spaced reference lines aligned to the axis, drawn
+//!   behind the data.
+//! * [`TickLabels`] : small marks along each axis with formatted numeric
+//!   labels.
+//!
+//! Each element has an associated `*Config` / `*Configs` type (built via
+//! `derive_builder`) and implements either [`PlotElement`] or
+//! [`ChartElement`] depending on whether it needs a view transform.
+
 use std::{f32, ops::Range};
 
 use derive_builder::Builder;
@@ -36,19 +50,40 @@ impl Line {
         }
     }
 }
-/// Configurations for a line. The line could have an arrow in it's tip, and
-/// arguments from such are also inside line config. As default, it has no
-/// arrow.
+/// Configurations for a [`Line`].
+///
+/// Controls thickness, color, and whether an arrowhead is rendered at the
+/// destination end. When `color` is `None` it is resolved from the active
+/// [`Colorscheme`](crate::colorscheme::Colorscheme) at theme-application
+/// time.
+///
+/// Built via [`LineConfigBuilder`]:
+///
+/// ```rust
+/// use locus::prelude::*;
+/// use raylib::color::Color;
+/// let cfg = LineConfigBuilder::default()
+///     .thickness(2.0)
+///     .color(Color::RED)
+///     .arrow(Visibility::Invisible)
+///     .build()
+///     .unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, Builder)]
 #[builder(pattern = "owned")]
 #[builder(default)]
 pub struct LineConfig {
+    /// Line width in pixels.
     pub thickness: f32,
+    /// Explicit color. `None` means "use the theme default".
     #[builder(setter(into, strip_option))]
-    pub color: Option<Color>, // Defaults means use theme's
+    pub color: Option<Color>,
+    /// Whether to draw an arrowhead at the `to` end.
     pub arrow: Visibility,
-    pub arrow_length: f32, // Only matters if arrow is visible
-    pub arrow_width: f32,  // Only matters if arrow is visible
+    /// Length of the arrowhead along the line direction (pixels).
+    pub arrow_length: f32,
+    /// Half-width of the arrowhead perpendicular to the line (pixels).
+    pub arrow_width: f32,
 }
 
 impl Default for LineConfig {
@@ -130,9 +165,16 @@ impl Axis {
     }
 
     /// Creates a new Axis that fits the given data ranges, applying "nice number" algorithms
-    /// to determine the ticks and padding.
+    /// to determine the determine the range.
     #[must_use]
-    pub fn fitting(
+    pub fn fitting(x_range: Range<f32>, y_range: Range<f32>) -> Self {
+        Self::fitting_config(x_range, y_range, 0.01, 30)
+    }
+    /// Creates a new Axis that fits the given data ranges, applying "nice number" algorithms
+    /// to determine the ticks and padding. Extra configs for padding percent and max number of
+    /// ticks
+    #[must_use]
+    pub fn fitting_config(
         x_range: Range<f32>,
         y_range: Range<f32>,
         padding_pct: f32,
@@ -199,29 +241,49 @@ impl From<(Range<f32>, Range<f32>)> for Axis {
     }
 }
 
+/// Toggle for visual elements that can be shown or hidden.
 #[derive(Debug, Clone, Copy)]
 pub enum Visibility {
+    /// The element is drawn.
     Visible,
+    /// The element is suppressed.
     Invisible,
 }
 
-/// Configs for the axis. Arrows are default to True.
+/// Configuration for the pair of axis lines.
+///
+/// Individual axes and their arrowheads can be toggled via the builder
+/// helpers [`strip_x_axis`](AxisConfigsBuilder::strip_x_axis),
+/// [`strip_y_axis`](AxisConfigsBuilder::strip_y_axis), and
+/// [`strip_both_arrows`](AxisConfigsBuilder::strip_both_arrows).
+///
+/// When `color` is `None`, it is resolved from
+/// [`Colorscheme::axis`](crate::colorscheme::Colorscheme::axis) during
+/// theme application.
 #[derive(Debug, Clone, Copy, Builder)]
 #[builder(pattern = "owned")]
 #[builder(default)]
 pub struct AxisConfigs {
+    /// Visibility of the x-axis arrowhead.
     #[builder(private)]
     pub x_arrow: Visibility,
+    /// Visibility of the y-axis arrowhead.
     #[builder(private)]
     pub y_arrow: Visibility,
+    /// Visibility of the x-axis line itself.
     #[builder(private)]
     pub x_axis: Visibility,
+    /// Visibility of the y-axis line itself.
     #[builder(private)]
     pub y_axis: Visibility,
+    /// Length of arrowheads in pixels.
     pub arrow_length: f32,
+    /// Width of arrowheads in pixels.
     pub arrow_width: f32,
+    /// Explicit color. `None` means "use theme axis color".
     #[builder(setter(into, strip_option))]
-    pub color: Option<Color>, // Defaults means use theme's
+    pub color: Option<Color>,
+    /// Line thickness in pixels.
     pub thickness: f32,
 }
 
@@ -370,16 +432,24 @@ impl Themable for AxisConfigs {
     }
 }
 
+/// Controls which directions grid lines are drawn and with what spacing.
 #[derive(Debug, Clone, Copy)]
 pub enum Orientation {
+    /// Only vertical grid lines (perpendicular to the x-axis).
     Vertical {
+        /// Spacing strategy between consecutive vertical lines.
         separation: Separation,
     },
+    /// Only horizontal grid lines (perpendicular to the y-axis).
     Horizontal {
+        /// Spacing strategy between consecutive horizontal lines.
         separation: Separation,
     },
+    /// Both vertical and horizontal grid lines (the default).
     Both {
+        /// Spacing for vertical lines.
         separation_x: Separation,
+        /// Spacing for horizontal lines.
         separation_y: Separation,
     },
 }
@@ -392,13 +462,21 @@ impl Default for Orientation {
     }
 }
 
+/// Strategy for spacing grid lines or tick marks along an axis.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum Separation {
+    /// Let the library choose a "nice" spacing automatically.
     #[default]
     Auto,
+    /// Use an explicit spacing value in data units.
     Value(f32),
 }
 
+/// Grid lines drawn behind the data to aid visual reading.
+///
+/// Constructed from an [`Axis`] (which defines the data range) and an
+/// [`Orientation`] (which controls direction and spacing). Implements
+/// [`ChartElement`] and is rendered via a [`ViewTransformer`].
 #[derive(Debug, Clone, Copy)]
 pub struct GridLines {
     pub(crate) axis: Axis,
@@ -406,20 +484,31 @@ pub struct GridLines {
 }
 
 impl GridLines {
+    /// Create grid lines for `axis` in the given `orientation`.
     #[must_use]
     pub fn new(axis: Axis, orientation: Orientation) -> Self {
         Self { axis, orientation }
     }
 }
 
+/// Configuration for [`GridLines`] rendering.
+///
+/// When `color` is `None` it is resolved from
+/// [`Colorscheme::grid`](crate::colorscheme::Colorscheme::grid) during
+/// theme application.
 #[derive(Debug, Clone, Copy, Builder)]
 #[builder(pattern = "owned")]
 #[builder(default)]
 pub struct GridLinesConfig {
+    /// Explicit grid color. `None` means "use theme grid color".
     #[builder(setter(strip_option, into))]
-    pub color: Option<Color>, // None means default
+    pub color: Option<Color>,
+    /// Alpha multiplier applied on top of the color's own alpha.
     pub alpha: f32,
+    /// Line thickness in pixels.
     pub thickness: f32,
+    /// Maximum number of grid lines per axis (used by the auto-spacing
+    /// algorithm).
     pub max_ticks: usize,
 }
 
@@ -557,46 +646,73 @@ impl Themable for GridLinesConfig {
     }
 }
 
+/// Small marks along each axis with formatted numeric labels.
+///
+/// `TickLabels` combines tick mark rendering with optional text labels
+/// placed next to each major tick. It supports linear, logarithmic, and
+/// symmetric-log scales via the [`Scale`] enum in [`ticks`](super::ticks).
+///
+/// Constructed from an [`Axis`] and configured through
+/// [`TickLabelsConfig`] / [`TickLabelsBuilder`].
 #[derive(Clone, Debug, Copy)]
 pub struct TickLabels {
     pub(crate) axis: Axis,
 }
 
 impl TickLabels {
+    /// Create tick labels for the given `axis`.
     #[must_use]
     pub fn new(axis: Axis) -> Self {
         Self { axis }
     }
 }
 
+/// Configuration for [`TickLabels`] rendering.
+///
+/// Controls which axes display ticks, the scale type (linear, log,
+/// symmetric-log), mark sizes, label text style, and spacing.
+///
+/// When `color` is `None` it is resolved from
+/// [`Colorscheme::axis`](crate::colorscheme::Colorscheme::axis). The label
+/// text style is separately themed from
+/// [`Colorscheme::text`](crate::colorscheme::Colorscheme::text).
 #[derive(Debug, Clone, Builder)]
 #[builder(pattern = "owned")]
 #[builder(default, name = "TickLabelsBuilder")]
 pub struct TickLabelsConfig {
+    /// Explicit tick mark color. `None` means "use theme axis color".
     #[builder(setter(strip_option, into))]
-    pub color: Option<Color>, // None means theme's
+    pub color: Option<Color>,
+    /// Alpha multiplier for tick marks.
     pub alpha: f32,
+    /// Length of major tick marks in pixels.
     pub major_size: f32,
+    /// Length of minor tick marks in pixels (log/symlog scales).
     pub minor_size: f32,
+    /// Maximum number of ticks per axis.
     pub max_ticks: usize,
+    /// Spacing strategy for tick placement.
     pub separation: Separation,
+    /// Visibility of x-axis ticks.
     #[builder(private)]
     pub x_axis: Visibility,
+    /// Scale type for x-axis ticks (linear, log, or symlog).
     #[builder(default = "Scale::Linear", private)]
-    pub x_axis_scale: Scale, // Only matter if x axis is visible, else is ignored
+    pub x_axis_scale: Scale,
+    /// Visibility of y-axis ticks.
     #[builder(private)]
     pub y_axis: Visibility,
+    /// Scale type for y-axis ticks (linear, log, or symlog).
     #[builder(default = "Scale::Linear", private)]
-    pub y_axis_scale: Scale, // Only matter if y axis is visible, else is ignored
+    pub y_axis_scale: Scale,
 
-    // ── Tick label text ──────────────────────────────────────────
-    /// Whether to draw the tick value text next to the marks.
+    /// Whether to draw numeric labels next to tick marks.
     pub show_labels: bool,
-    /// Visual style for tick-label text. Themed via `Colorscheme.text`.
+    /// Text style applied to tick labels. Themed via [`Colorscheme::text`](crate::colorscheme::Colorscheme::text).
     pub label_style: TextStyle,
-    /// Gap (px) between the end of the tick mark and the start of the label.
+    /// Gap in pixels between the tick mark and the start of the label text.
     pub label_offset: f32,
-    /// Rotation in degrees for x-axis tick labels (e.g. 45° for long labels).
+    /// Rotation in degrees for x-axis tick labels (useful for long labels).
     pub label_rotation: f32,
 }
 
