@@ -14,7 +14,7 @@
 //!
 //! ```rust,no_run
 //! use locus::prelude::*;
-//! # let axis = Axis::fitting(0.0..10.0,0.0..10.0, 1.0,10);
+//! # let axis = Axis::fitting(0.0..10.0,0.0..10.0);
 //! # let grid = GridLines::new(axis, Orientation::default());
 //! # let ticks = TickLabels::new(axis);
 //! # let my_scheme = DRACULA.clone();
@@ -226,7 +226,7 @@ impl std::error::Error for GraphBuilderError {}
 /// # const IMAGE_SIZE: i32 = 90;
 /// # const WIDTH: i32 = 16 * IMAGE_SIZE;
 /// # const HEIGHT: i32 = 9 * IMAGE_SIZE;
-/// # let axis = Axis::fitting(0.0..10.0,0.0..10.0, 1.0,10);
+/// # let axis = Axis::fitting(0.0..10.0,0.0..10.0);
 /// # let grid = GridLines::new(axis, Orientation::default());
 /// # let ticks = TickLabels::new(axis);
 /// # let scheme = DRACULA.clone();
