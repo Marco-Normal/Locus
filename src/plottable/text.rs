@@ -14,7 +14,19 @@
 //!
 //! # Font loading
 //!
-//! ```rust,ignore
+//! ```rust,no_run
+//! use locus::prelude::*;
+//! use raylib::color::Color;
+//! # use std::error::Error;
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # const IMAGE_SIZE: i32 = 90;
+//! # const WIDTH: i32 = 16 * IMAGE_SIZE;
+//! # const HEIGHT: i32 = 9 * IMAGE_SIZE;
+//! # let (mut rl, thread) = raylib::init()
+//! #       .width(WIDTH)
+//! #       .height(HEIGHT)
+//! #       .title("Datasets")
+//! #       .build();
 //! let font = FontHandle::load(&mut rl, &thread, "assets/font.ttf", 48)?;
 //! let style = TextStyleBuilder::default()
 //!     .font(Some(font))
@@ -23,14 +35,12 @@
 //!     .anchor(Anchor::TOP_LEFT)
 //!     .build()
 //!     .unwrap();
+//! #    Ok(())
+//! #    }
 //! ```
 //!
 //! When no font is loaded, raylib's built-in bitmap font is used
 //! automatically.
-
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 
 use std::rc::Rc;
 
@@ -188,7 +198,9 @@ impl FontHandle {
 /// All visual / layout properties needed to render a piece of text.
 ///
 /// Build with `TextStyleBuilder`:
-/// ```ignore
+/// ```rust
+/// use locus::prelude::*;
+/// use raylib::color::Color;
 /// let style = TextStyleBuilder::default()
 ///     .font_size(24.0)
 ///     .color(Some(Color::WHITE))
@@ -291,7 +303,7 @@ impl PlotElement for TextLabel {
             Some(fh) => &fh.font,
             None => &default_font,
         };
-        let size = configs.measure_text(&self.text, &font);
+        let size = configs.measure_text(&self.text, font);
         let tl = anchor_text_top_left(size, configs.anchor, configs.offset);
         let color = configs.effective_color();
         if configs.rotation.abs() < f32::EPSILON {

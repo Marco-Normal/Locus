@@ -34,6 +34,7 @@ pub mod view;
 pub(crate) mod common {
     use crate::plottable::line::Separation;
 
+    #[allow(clippy::cast_precision_loss)]
     pub(crate) fn get_spacing(length: f32, separation: Separation, max_ticks: usize) -> f32 {
         match separation {
             Separation::Value(v) => v,
@@ -71,6 +72,7 @@ pub(crate) mod common {
     }
     /// Returns a tuple where the first value is the minimum, the second maximum and the third
     /// the step size. Iterating from min to max by step, generates a "nicely" spaced range
+    #[allow(clippy::cast_precision_loss)]
     pub(crate) fn linear_spacing(min: f32, max: f32, max_ticks: usize) -> (f32, f32, f32) {
         let mut low = min.min(max);
         let mut high = min.max(max);
@@ -88,7 +90,8 @@ pub(crate) mod common {
     /// Tick data returned by [`log_spacing`].
     pub(crate) type LogSpacingResult = (f32, f32, Vec<f32>, Option<Vec<f32>>);
 
-    /// Returns a tuple composed of (min_val, max_val, ticks, minor_ticks)
+    /// Returns a tuple composed of (`min_val`, `max_val`, `ticks`, `minor_ticks`)
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     pub(crate) fn log_spacing(
         min: f32,
         max: f32,

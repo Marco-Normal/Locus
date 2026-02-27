@@ -10,10 +10,10 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use locus::{LegendEntry, LegendPosition};
-//! use locus::plottable::point::Shape;
+//! ```rust
+//! use locus::prelude::*;
 //! use raylib::color::Color;
+//! # let mut builder: GraphBuilder<ScatterPlot> = GraphBuilder::default();
 //!
 //! let entries = vec![
 //!     LegendEntry::new("Cluster A", Color::RED),
@@ -21,10 +21,6 @@
 //! ];
 //! builder.legend(entries);
 //! ```
-
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 
 use derive_builder::Builder;
 use raylib::{
@@ -157,7 +153,7 @@ impl Default for LegendConfig {
 
 impl ChartElement for Legend {
     type Config = LegendConfig;
-
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     fn draw_in_view(
         &self,
         rl: &mut raylib::prelude::RaylibDrawHandle,
@@ -180,7 +176,7 @@ impl ChartElement for Legend {
             + ((n.saturating_sub(1)) as f32) * configs.entry_spacing;
         let mut max_label_width: f32 = 0.0;
         for entry in &self.entries {
-            let size = configs.label_style.measure_text(&entry.label, &font);
+            let size = configs.label_style.measure_text(&entry.label, font);
             max_label_width = max_label_width.max(size.x);
         }
 

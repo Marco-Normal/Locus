@@ -105,11 +105,11 @@ pub mod prelude {
     pub use super::dataset::*;
     pub use super::graph::*;
     pub use super::plottable::annotation::*;
-    pub use super::plottable::legend::{Legend, LegendEntry, LegendPosition};
+    pub use super::plottable::legend::*;
     pub use super::plottable::line::*;
     pub use super::plottable::point::*;
     pub use super::plottable::scatter::*;
-    pub use super::plottable::text::{Anchor, FontHandle, HAlign, TextLabel, TextStyle, VAlign};
+    pub use super::plottable::text::*;
     pub use super::plottable::ticks::*;
     pub use super::plottable::view::*;
     pub use super::plotter::*;

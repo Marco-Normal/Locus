@@ -13,9 +13,6 @@
 //! module implements one (or both) of these traits. The associated `Config`
 //! type carries all style and layout parameters needed to render the element.
 
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 use raylib::prelude::RaylibDrawHandle;
 
 use crate::plottable::view::{DataBBox, ViewTransformer};

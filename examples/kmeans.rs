@@ -33,8 +33,6 @@ fn main() {
     let axis = Axis::fitting(
         dataset.range_min.x..dataset.range_max.x,
         dataset.range_min.y..dataset.range_max.y,
-        0.01,
-        15,
     );
 
     let grid_lines = GridLines::new(

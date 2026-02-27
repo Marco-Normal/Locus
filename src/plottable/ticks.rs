@@ -5,18 +5,14 @@
 //! The entry point is [`TickSet::generate_ticks`], which dispatches to
 //! specialised routines for each scale:
 //!
-//! * **Linear** : uses the "nice number" algorithm to snap step sizes to
+//! * **`Linear`** : uses the "nice number" algorithm to snap step sizes to
 //!   multiples of 1, 2, or 5, producing familiar round numbers.
-//! * **Log** : places ticks at integer powers of the chosen base, with
+//! * **`Log`** : places ticks at integer powers of the chosen base, with
 //!   optional minor ticks at integer multiples within each decade.
-//! * **SymLog** : combines a linear region around zero with log wings in
+//! * **`SymLog`** : combines a linear region around zero with log wings in
 //!   both the positive and negative directions, useful for data that
 //!   spans several orders of magnitude while including zero.
 
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
-#![forbid(unsafe_code)]
 use std::cmp::Ordering;
 
 use crate::plottable::{
@@ -109,21 +105,6 @@ impl TickSet {
     )]
     /// Generates Linear ticks that span `min` and `max`, with ticks positioned at "nice" numbers
     fn linear_ticks(min: f32, max: f32, spec: TickSpec) -> Self {
-        // let mut lo = min.min(max);
-        // let mut hi = min.max(max);
-        // if (hi - lo).abs() < f32::EPSILON {
-        //     lo -= 1.0;
-        //     hi += 1.0;
-        // }
-
-        // let n = spec.max_ticks.max(2) as f32;
-        // let step = match spec.separation {
-        //     Separation::Value(v) if v > 0.0 && v.is_finite() => v,
-        //     _ => nice_number(((hi - lo) / (n - 1.0)).max(f32::EPSILON), true),
-        // };
-
-        // let tmin = (lo / step).floor() * step;
-        // let tmax = (hi / step).ceil() * step;
         let (val_min, val_max, step) = linear_spacing(min, max, spec.max_ticks);
         let step = match spec.separation {
             Separation::Value(v) if v > 0.0 && v.is_finite() => v,
@@ -277,7 +258,7 @@ fn format_tick(v: f32, decimals: usize) -> String {
 }
 
 fn format_log_label(v: f32) -> String {
-    // Keep labels compact; you can switch to scientific notation if preferred.
+    // Keep labels compact
     if (0.01..1000.0).contains(&v) {
         format_tick(v, 6)
     } else {

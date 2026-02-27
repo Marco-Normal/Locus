@@ -44,14 +44,12 @@
 //!     .colorscheme(my_scheme)
 //!     .build()
 //!     .unwrap();
-//!
+//! {
 //! // inside the render loop:
 //! graph.plot(&mut draw_handle, &config);
+//! }
 //! ```
 
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 use crate::{
     TextLabel,
     colorscheme::{Colorscheme, Themable},
@@ -222,7 +220,7 @@ impl std::error::Error for GraphBuilderError {}
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// # use locus::prelude::*;
 /// # use raylib::color::Color;
 /// # const IMAGE_SIZE: i32 = 90;
@@ -232,6 +230,12 @@ impl std::error::Error for GraphBuilderError {}
 /// # let grid = GridLines::new(axis, Orientation::default());
 /// # let ticks = TickLabels::new(axis);
 /// # let scheme = DRACULA.clone();
+/// # let (mut rl, rl_thread) = raylib::init()
+/// #       .width(WIDTH)
+/// #       .height(HEIGHT)
+/// #       .title("Datasets")
+/// #       .build();
+/// # let mut draw_handle = rl.begin_drawing(&rl_thread);
 /// # let vp = Viewport::new(10.0, 10.0, (WIDTH / 2) as f32, (HEIGHT - 15) as f32)
 /// #                        .with_margins(Margins {
 /// #                            left: 40.0,
@@ -245,6 +249,9 @@ impl std::error::Error for GraphBuilderError {}
 /// #                    LegendEntry::new("Cluster B", Color::GREEN).with_shape(Shape::Triangle),
 /// #                ];
 /// # let my_configs = ScatterPlotBuilder::default().build().unwrap();
+/// # let dataset = Dataset::new(vec![(0.0,0.0), (1.0,1.0), (2.0, 2.0)]);
+/// # let scatter_plot = ScatterPlot::new(&dataset);
+/// let graph = Graph::new(scatter_plot);
 /// let config = GraphBuilder::default()
 ///     .viewport(vp)
 ///     .axis(ConfiguredElement::with_defaults(axis))
@@ -258,6 +265,7 @@ impl std::error::Error for GraphBuilderError {}
 ///     .subject_configs(my_configs)
 ///     .build()
 ///     .unwrap();
+/// # graph.plot(&mut draw_handle, &config);
 /// ```
 pub struct GraphBuilder<T>
 where
@@ -304,8 +312,6 @@ where
     T: ChartElement,
     <T as ChartElement>::Config: Default + Themable,
 {
-    // ── Original fields ──────────────────────────────────────────
-
     /// Set the subject-specific configuration (e.g. [`ScatterPlotConfig`](crate::plottable::scatter::ScatterPlotConfig)).
     #[must_use]
     pub fn subject_configs(mut self, val: T::Config) -> Self {
@@ -473,12 +479,12 @@ where
         if self.annotations.is_none() {
             self.annotations = Some(Vec::new());
         }
-        self.annotations.as_mut().map(|v| {
-            v.push(ConfiguredElement {
+        if let Some(annot) = self.annotations.as_mut() {
+            annot.push(ConfiguredElement {
                 element: annotation,
                 configs: AnnotationConfig::default(),
-            })
-        });
+            });
+        }
         self
     }
 
@@ -494,12 +500,12 @@ where
         if self.annotations.is_none() {
             self.annotations = Some(Vec::new());
         }
-        self.annotations.as_mut().map(|v| {
-            v.push(ConfiguredElement {
+        if let Some(annot) = self.annotations.as_mut() {
+            annot.push(ConfiguredElement {
                 element: annotation,
                 configs,
-            })
-        });
+            });
+        }
         self
     }
 
@@ -617,7 +623,6 @@ where
         // We need to construct the view where the graph elements will live.
         // As such, we need to provide the screen-bounds, given by the configs
         // and the data-bounds, given by the `subject.data_bounds()`
-        // rl.clear_background(configs.colorscheme.background);
         let screen = configs.viewport;
         let data_bbox = if let Some(axis) = &configs.axis {
             axis.element.data_bounds()
@@ -669,9 +674,9 @@ where
             legend.draw_in_view(rl, &view);
         }
         if let Some(annotations) = &configs.annotations {
-            annotations
-                .iter()
-                .for_each(|ann| ann.draw_in_view(rl, &view));
+            for annot in annotations {
+                annot.draw_in_view(rl, &view);
+            }
         }
     }
 }

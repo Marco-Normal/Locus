@@ -1,7 +1,3 @@
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
-
 mod common;
 use common::{MakeCirclesBuilder, make_circles};
 use locus::prelude::*;
@@ -39,8 +35,6 @@ fn main() {
     let axis = Axis::fitting(
         dataset.range_min.x..dataset.range_max.x,
         dataset.range_min.y..dataset.range_max.y,
-        0.01,
-        15,
     );
 
     let ticks = TickLabels::new(axis);

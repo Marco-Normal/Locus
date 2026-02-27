@@ -108,6 +108,7 @@ pub struct Margins {
 impl Margins {
     /// Create margins with the same inset on all four sides.
     #[inline]
+    #[must_use]
     pub const fn all(v: f32) -> Self {
         Self {
             left: v,
@@ -127,7 +128,8 @@ impl Margins {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
+/// use locus::prelude::*;
 /// let vp = Viewport::new(10.0, 10.0, 800.0, 600.0)
 ///     .with_margins(Margins { left: 60.0, right: 20.0, top: 50.0, bottom: 55.0 });
 /// ```
@@ -155,6 +157,7 @@ impl Default for Viewport {
 impl Viewport {
     /// Create a viewport at `(x, y)` with the given dimensions and no margins.
     #[inline]
+    #[must_use]
     pub const fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self {
             x,
@@ -172,6 +175,7 @@ impl Viewport {
 
     /// Set the inner margins, returning the modified viewport for chaining.
     #[inline]
+    #[must_use]
     pub const fn with_margins(mut self, margins: Margins) -> Self {
         self.margins = margins;
         self
@@ -183,6 +187,7 @@ impl Viewport {
     /// - `minimum` is the top-left corner
     /// - `maximum` is the bottom-right corner
     #[inline]
+    #[must_use]
     pub fn outer_bbox(&self) -> ScreenBBox {
         let minimum = (self.x, self.y);
         let maximum = (self.x + self.width, self.y + self.height);
@@ -191,11 +196,12 @@ impl Viewport {
 
     /// Inner plotting area (after margins), in screen coordinates.
     ///
-    /// Note: this returns a *numeric* bounding box where `minimum.y <= maximum.y`.
+    /// NOTE: this returns a *numeric* bounding box where `minimum.y <= maximum.y`.
     /// In Raylib screen space that means:
     /// - `minimum` is the top-left corner
     /// - `maximum` is the bottom-right corner
     #[inline]
+    #[must_use]
     pub fn inner_bbox(&self) -> ScreenBBox {
         let minimum = (self.x + self.margins.left, self.y + self.margins.top);
         let maximum = (
@@ -237,6 +243,7 @@ pub struct ViewTransformer {
 
 impl ViewTransformer {
     /// Create a new transformer from explicit data and screen bounds.
+    #[must_use]
     pub fn new(data_bounds: DataBBox, screen_bounds: Viewport) -> Self {
         Self {
             data_bounds,
@@ -249,6 +256,7 @@ impl ViewTransformer {
     /// The x component is linearly mapped from the data range to the inner
     /// screen width. The y component is mapped with an inversion so that
     /// increasing data-y moves upward on the screen.
+    #[must_use]
     pub fn to_screen(&self, point: &Datapoint) -> Screenpoint {
         let screen_bounds = self.screen_bounds.inner_bbox();
         let x = map_val(

@@ -37,9 +37,6 @@
 //! [`Colorscheme::extend`] (consuming) or [`Colorscheme::extend_in_place`]
 //! (mutating).
 
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 use raylib::color::Color;
 use std::sync::LazyLock;
 
@@ -62,8 +59,7 @@ pub trait Themable {
 /// * `grid`       : the color (and optional alpha) of grid lines.
 /// * `text`       : the default color for titles, labels, and tick text.
 /// * `axis`       : the color of axis lines and tick marks.
-/// * `cycle`      : an ordered list of accent colors assigned to successive
-///                  data series or clusters.
+/// * `cycle`      : an ordered list of accent colors assigned to successive data series or clusters.
 ///
 /// The [`Default`] implementation returns [`MATPLOTLIB_LIGHT`].
 #[derive(Clone, Debug)]

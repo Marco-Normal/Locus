@@ -16,10 +16,6 @@
 //! `derive_builder`) and implements either [`PlotElement`] or
 //! [`ChartElement`] depending on whether it needs a view transform.
 
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
-#![forbid(unsafe_code)]
 use std::{f32, ops::Range};
 
 use derive_builder::Builder;
@@ -63,7 +59,9 @@ impl Line {
 ///
 /// Built via [`LineConfigBuilder`]:
 ///
-/// ```rust,ignore
+/// ```rust
+/// use locus::prelude::*;
+/// use raylib::color::Color;
 /// let cfg = LineConfigBuilder::default()
 ///     .thickness(2.0)
 ///     .color(Color::RED)
@@ -167,9 +165,16 @@ impl Axis {
     }
 
     /// Creates a new Axis that fits the given data ranges, applying "nice number" algorithms
-    /// to determine the ticks and padding.
+    /// to determine the determine the range.
     #[must_use]
-    pub fn fitting(
+    pub fn fitting(x_range: Range<f32>, y_range: Range<f32>) -> Self {
+        Self::fitting_config(x_range, y_range, 0.01, 30)
+    }
+    /// Creates a new Axis that fits the given data ranges, applying "nice number" algorithms
+    /// to determine the ticks and padding. Extra configs for padding percent and max number of
+    /// ticks
+    #[must_use]
+    pub fn fitting_config(
         x_range: Range<f32>,
         y_range: Range<f32>,
         padding_pct: f32,

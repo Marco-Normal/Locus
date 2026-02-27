@@ -13,11 +13,6 @@
 //! [`Screenpoint`] additionally implements [`PlotElement`] so that individual
 //! points can be rendered with a configurable [`Shape`], size, and color.
 
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
-#![forbid(unsafe_code)]
-
 use crate::plotter::PlotElement;
 use derive_builder::Builder;
 use raylib::math::Vector2;
@@ -32,7 +27,9 @@ use raylib::prelude::*;
 ///
 /// # Construction
 ///
-/// ```rust,ignore
+/// ```rust
+/// use locus::prelude::*;
+/// use raylib::math::Vector2;
 /// let p = Datapoint::new(3.0, 4.5);
 /// let p: Datapoint = (3.0, 4.5).into();
 /// let p: Datapoint = Vector2::new(3.0, 4.5).into();
@@ -144,7 +141,9 @@ pub enum Shape {
 ///
 /// Built via [`PointConfigBuilder`]:
 ///
-/// ```rust,ignore
+/// ```rust
+/// use locus::prelude::*;
+/// use raylib::color::Color;
 /// let cfg = PointConfigBuilder::default()
 ///     .color(Color::RED)
 ///     .size(6.0)

@@ -12,27 +12,24 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use locus::Annotation;
-//! use locus::plottable::annotation::{AnnotLineConfigBuilder, AnnotationConfig};
+//! ```rust
+//! use locus::prelude::*;
 //!
 //! // Simple annotation at a data point
 //! let ann = Annotation::at_data("outlier", (3.5, 12.0));
 //!
 //! // With a styled leader arrow
+//! # let mut builder: GraphBuilder<ScatterPlot> = GraphBuilder::default();
 //! builder.annotate_styled(ann, |c| {
 //!     c.line = Some(
 //!         AnnotLineConfigBuilder::default()
 //!             .target((3.5, 10.0).into())
+//!             .arrow(Visibility::Visible)
 //!             .build()
 //!             .unwrap(),
 //!     );
 //! });
 //! ```
-
-#![allow(dead_code)]
-#![warn(clippy::pedantic)]
-#![deny(clippy::style, clippy::perf, clippy::correctness, clippy::complexity)]
 
 use derive_builder::Builder;
 use raylib::color::Color;
@@ -58,13 +55,8 @@ pub enum AnnotationPosition {
     Screen(Screenpoint),
 }
 
-/// A text annotation placed at a specific location, optionally with a
-/// leader line to a data point.
+/// A text annotation placed at a specific location;
 ///
-/// ```ignore
-/// Annotation::new("outlier", (3.5, 12.0))
-///     .with_arrow(ArrowConfig::new((3.5, 10.0)));
-/// ```
 #[derive(Debug, Clone)]
 pub struct Annotation {
     pub text: String,
@@ -97,7 +89,7 @@ pub struct AnnotLineConfig {
 
 /// Configuration for an [`Annotation`], controlling text style and the
 /// optional leader line.
-#[derive(Debug, Clone, Builder)]
+#[derive(Debug, Clone, Builder, Default)]
 #[builder(pattern = "owned")]
 pub struct AnnotationConfig {
     /// Visual style of the annotation text.
@@ -107,15 +99,6 @@ pub struct AnnotationConfig {
     /// the annotation origin to the specified target data point.
     #[builder(setter(into, strip_option), default = "None")]
     pub line: Option<AnnotLineConfig>,
-}
-
-impl Default for AnnotationConfig {
-    fn default() -> Self {
-        Self {
-            style: TextStyle::default(),
-            line: None,
-        }
-    }
 }
 
 impl AnnotationConfigBuilder {
@@ -144,13 +127,6 @@ impl AnnotationConfigBuilder {
     }
 }
 
-// #[derive(Clone, Builder)]
-// #[builder(pattern = "owned")]
-// pub struct AnnotationConfigs {
-//     #[builder(default = "TextStyle::default()")]
-//     #[builder(default = "None", setter(strip_option))]
-// }
-
 impl Annotation {
     /// Create an annotation at a data-space position.
     #[must_use]
@@ -158,15 +134,6 @@ impl Annotation {
         Self {
             text: text.into(),
             position: AnnotationPosition::Data(point.into()),
-            // style: TextStyle {
-            //     font_size: 14.0,
-            //     alpha: 1.0,
-            //     color: Some(Color::WHITE),
-            //     spacing: 1.0,
-            //     anchor: Anchor::CENTER,
-            //     ..TextStyle::default()
-            // },
-            // line: None,
         }
     }
 
@@ -176,27 +143,8 @@ impl Annotation {
         Self {
             text: text.into(),
             position: AnnotationPosition::Screen(point.into()),
-            // style: TextStyle {
-            //     font_size: 14.0,
-            //     alpha: 1.0,
-            //     color: Some(Color::WHITE),
-            //     spacing: 1.0,
-            //     ..TextStyle::default()
-            // },
-            // line: None,
         }
     }
-    // #[must_use]
-    // pub fn with_line(mut self, line: LineConfig) -> Self {
-    //     self.line = Some(line);
-    //     self
-    // }
-
-    // #[must_use]
-    // pub fn with_style(mut self, style: TextStyle) -> Self {
-    //     self.style = style;
-    //     self
-    // }
 }
 
 impl ChartElement for Annotation {
@@ -247,7 +195,7 @@ impl Themable for AnnotationConfig {
         }
         if let Some(line_configs) = &mut self.line
             && line_configs.color.is_none()
-            && !self.style.color.is_none()
+            && self.style.color.is_some()
         {
             line_configs.color = self.style.color;
         }

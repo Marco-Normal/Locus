@@ -7,10 +7,10 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use locus::plottable::scatter::{ScatterPlot, ScatterPlotBuilder};
+//! ```rust
+//! use locus::prelude::*;
 //! use raylib::color::Color;
-//!
+//! # let dataset = Dataset::new(vec![(0.0,0.0), (1.0,1.0), (2.0, 2.0)]);
 //! let scatter = ScatterPlot::new(&dataset);
 //! let config = ScatterPlotBuilder::default()
 //!     .fixed_color(Color::RED)
@@ -58,7 +58,9 @@ pub enum Strategy<T> {
 ///
 /// Construct via [`ScatterPlotBuilder`]:
 ///
-/// ```rust,ignore
+/// ```rust
+/// use locus::prelude::*;
+/// use raylib::color::Color;
 /// ScatterPlotBuilder::default()
 ///     .fixed_color(Color::BLUE)
 ///     .mapped_size(Box::new(|pt, _i| pt.y.abs()))
@@ -155,6 +157,7 @@ pub struct ScatterPlot<'a> {
 
 impl<'a> ScatterPlot<'a> {
     /// Create a scatter plot over the given dataset.
+    #[must_use]
     pub fn new(data: &'a Dataset) -> Self {
         Self { data }
     }
@@ -220,7 +223,7 @@ impl Themable for ScatterPlotConfig {
             None => {
                 self.color = Some(Strategy::Fixed(
                     scheme.cycle.first().copied().unwrap_or(Color::BLACK),
-                ))
+                ));
             }
         }
     }
