@@ -70,8 +70,6 @@ fn main() {
     let axis = Axis::fitting(
         data.range_min.x..data.range_max.x,
         data.range_min.y..data.range_max.y,
-        0.05,
-        10,
     );
 
     let config = GraphBuilder::default()
