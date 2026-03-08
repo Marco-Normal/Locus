@@ -17,7 +17,13 @@
 //! # let axis = Axis::fitting(0.0..10.0,0.0..10.0);
 //! # let grid = GridLines::new(axis, Orientation::default());
 //! # let ticks = TickLabels::new(axis);
-//! # let my_scheme = DRACULA.clone();
+//! let my_scheme = Colorscheme::new(
+//!     Color::BLACK,                 // background
+//!     Color::DARKGRAY,              // grid
+//!     Color::WHITE,                 // text
+//!     Color::GRAY,                  // axis
+//!     vec![Color::RED, Color::BLUE], // cycle
+//! );
 //! # let dataset = Dataset::new(vec![(0.0,0.0), (1.0,1.0), (2.0, 2.0)]);
 //! # let scatter_plot = ScatterPlot::new(&dataset);
 //! # let (mut rl, rl_thread) = raylib::init()
@@ -49,6 +55,8 @@
 //! graph.plot(&mut draw_handle, &config);
 //! }
 //! ```
+
+use std::borrow::Cow;
 
 use crate::{
     TextLabel,
@@ -276,7 +284,7 @@ where
     viewport: Option<Viewport>,
     axis: Option<ConfiguredElement<Axis, AxisConfigs>>,
     grid: Option<ConfiguredElement<GridLines, GridLinesConfig>>,
-    colorscheme: Option<Colorscheme>,
+    colorscheme: Option<Cow<'static, Colorscheme>>,
     ticks: Option<ConfiguredElement<TickLabels, TickLabelsConfig>>,
     title: Option<(String, TextStyle)>,
     xlabel: Option<(String, TextStyle)>,
@@ -342,8 +350,8 @@ where
 
     /// Set the color scheme used to resolve theme-dependent defaults.
     #[must_use]
-    pub fn colorscheme(mut self, val: Colorscheme) -> Self {
-        self.colorscheme = Some(val);
+    pub fn colorscheme(mut self, scheme: impl Into<Cow<'static, Colorscheme>>) -> Self {
+        self.colorscheme = Some(scheme.into());
         self
     }
 
@@ -556,12 +564,15 @@ where
             } else {
                 None
             };
+        let scheme = self
+            .colorscheme
+            .unwrap_or(Cow::Owned(Colorscheme::default()));
         Ok(GraphConfig {
             subject_configs: self.subject_configs.unwrap_or_default(),
             viewport: self.viewport.unwrap_or_default(),
             axis: self.axis,
             grid: self.grid,
-            colorscheme: self.colorscheme.unwrap_or_default(),
+            colorscheme: scheme.into_owned(),
             ticks: self.ticks,
             title,
             xlabel,

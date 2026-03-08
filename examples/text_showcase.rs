@@ -30,7 +30,7 @@ fn main() {
 
     let scatter = ScatterPlot::new(&dataset);
     let graph = Graph::new(scatter);
-    let colorscheme = GITHUB_DARK.clone();
+    let colorscheme = &GITHUB_DARK;
 
     let axis = Axis::fitting(
         dataset.range_min.x..dataset.range_max.x,
@@ -55,7 +55,7 @@ fn main() {
                             bottom: 55.0,
                         }),
                 )
-                .colorscheme(colorscheme.clone())
+                .colorscheme(colorscheme)
                 // Axis + grid + ticks
                 .axis(ConfiguredElement::with_defaults(axis))
                 .grid(ConfiguredElement::with_defaults(GridLines::new(

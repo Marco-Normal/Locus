@@ -5,7 +5,7 @@
 //! ordered cycle of accent colors used by data series.
 //!
 //! The module ships with several ready-made palettes exposed as
-//! [`LazyLock`] statics:
+//! statics:
 //!
 //! | Static | Style |
 //! |---|---|
@@ -38,7 +38,7 @@
 //! (mutating).
 
 use raylib::color::Color;
-use std::sync::LazyLock;
+use std::borrow::Cow;
 
 /// Trait implemented by configuration types that can resolve theme-dependent
 /// defaults from a [`Colorscheme`].
@@ -73,7 +73,7 @@ pub struct Colorscheme {
     /// Color of the axis lines and tick marks.
     pub axis: Color,
     /// Ordered accent colors cycled through for data series.
-    pub cycle: Vec<Color>,
+    pub cycle: Cow<'static, [Color]>,
 }
 
 impl Colorscheme {
@@ -94,22 +94,28 @@ impl Colorscheme {
             grid,
             text,
             axis,
-            cycle,
+            cycle: cycle.into(),
         }
     }
 
     /// Append additional accent colors to `cycle` in place.
     pub fn extend_in_place(&mut self, other: Vec<Color>) {
-        self.cycle.extend(other);
+        // self.cycle.extend(other);
+        let mut cycle = self.cycle.to_vec();
+        cycle.extend(other);
+        self.cycle = cycle.into();
     }
     /// Return a new `Colorscheme` with `other` appended to the accent cycle.
     ///
     /// The original scheme is consumed; all non-cycle fields are preserved.
     #[must_use]
     pub fn extend(self, other: Vec<Color>) -> Self {
-        let mut cycle = self.cycle.clone();
+        let mut cycle = self.cycle.to_vec();
         cycle.extend(other);
-        Self { cycle, ..self }
+        Self {
+            cycle: cycle.into(),
+            ..self
+        }
     }
 }
 
@@ -119,9 +125,21 @@ impl Default for Colorscheme {
     }
 }
 
+impl From<Colorscheme> for Cow<'static, Colorscheme> {
+    fn from(val: Colorscheme) -> Self {
+        Cow::Owned(val)
+    }
+}
+
+impl From<&'static Colorscheme> for Cow<'static, Colorscheme> {
+    fn from(val: &'static Colorscheme) -> Self {
+        Cow::Borrowed(val)
+    }
+}
+
 /// Dark, high-contrast palette inspired by the
 /// [Dracula](https://draculatheme.com/) theme.
-pub static DRACULA: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static DRACULA: Colorscheme = Colorscheme {
     background: Color {
         r: 40,
         g: 42,
@@ -147,7 +165,7 @@ pub static DRACULA: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         b: 90,
         a: 255,
     },
-    cycle: vec![
+    cycle: Cow::Borrowed(&[
         Color {
             r: 255,
             g: 85,
@@ -190,11 +208,11 @@ pub static DRACULA: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
             b: 198,
             a: 255,
         }, // Pink
-    ],
-});
+    ]),
+};
 /// Dark, muted palette based on the
 /// [Nord](https://www.nordtheme.com/) Arctic color scheme.
-pub static NORD: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static NORD: Colorscheme = Colorscheme {
     background: Color {
         r: 46,
         g: 52,
@@ -219,7 +237,7 @@ pub static NORD: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         b: 94,
         a: 255,
     }, // Nord2
-    cycle: vec![
+    cycle: Cow::Borrowed(&[
         Color {
             r: 191,
             g: 97,
@@ -262,11 +280,11 @@ pub static NORD: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
             b: 173,
             a: 255,
         }, // Purple
-    ],
-});
+    ]),
+};
 /// Dark palette using the perceptually uniform
 /// [Viridis](https://bids.github.io/colormap/) color ramp.
-pub static VIRIDIS: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static VIRIDIS: Colorscheme = Colorscheme {
     background: Color {
         r: 34,
         g: 34,
@@ -291,7 +309,7 @@ pub static VIRIDIS: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         b: 80,
         a: 255,
     }, // Solid gray axis
-    cycle: vec![
+    cycle: Cow::Borrowed(&[
         Color {
             r: 68,
             g: 1,
@@ -322,12 +340,12 @@ pub static VIRIDIS: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
             b: 37,
             a: 255,
         }, // Yellow
-    ],
-});
+    ]),
+};
 
 /// Dark variant of the [Solarized](https://ethanschoonover.com/solarized/)
 /// precision color scheme.
-pub static SOLARIZED_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static SOLARIZED_DARK: Colorscheme = Colorscheme {
     background: Color {
         r: 0,
         g: 43,
@@ -352,7 +370,7 @@ pub static SOLARIZED_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme 
         b: 117,
         a: 255,
     }, // Base01
-    cycle: vec![
+    cycle: Cow::Borrowed(&[
         Color {
             r: 181,
             g: 137,
@@ -401,11 +419,11 @@ pub static SOLARIZED_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme 
             b: 0,
             a: 255,
         }, // Green
-    ],
-});
+    ]),
+};
 
 /// Dark theme inspired by [GitHub's](https://github.com/) dark mode UI.
-pub static GITHUB_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static GITHUB_DARK: Colorscheme = Colorscheme {
     background: Color {
         r: 13,
         g: 17,
@@ -430,7 +448,7 @@ pub static GITHUB_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         b: 61,
         a: 255,
     },
-    cycle: vec![
+    cycle: Cow::Borrowed(&[
         Color {
             r: 126,
             g: 231,
@@ -467,14 +485,14 @@ pub static GITHUB_DARK: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
             b: 132,
             a: 255,
         }, // Tan
-    ],
-});
+    ]),
+};
 
 /// Classic white-background palette modelled after
 /// [Matplotlib's](https://matplotlib.org/) default `tab10` cycle.
 ///
 /// This is the [`Default`] color scheme.
-pub static MATPLOTLIB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static MATPLOTLIB_LIGHT: Colorscheme = Colorscheme {
     background: Color {
         r: 255,
         g: 255,
@@ -499,7 +517,7 @@ pub static MATPLOTLIB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorschem
         b: 0,
         a: 255,
     }, // Solid black axis
-    cycle: vec![
+    cycle: Cow::Borrowed(&[
         Color {
             r: 31,
             g: 119,
@@ -542,12 +560,12 @@ pub static MATPLOTLIB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorschem
             b: 194,
             a: 255,
         }, // Pink
-    ],
-});
+    ]),
+};
 
 /// Light variant of the [Solarized](https://ethanschoonover.com/solarized/)
 /// precision color scheme.
-pub static SOLARIZED_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static SOLARIZED_LIGHT: Colorscheme = Colorscheme {
     background: Color {
         r: 253,
         g: 246,
@@ -572,7 +590,7 @@ pub static SOLARIZED_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme
         b: 161,
         a: 255,
     }, // Base1
-    cycle: vec![
+    cycle: Cow::Borrowed(&[
         Color {
             r: 181,
             g: 137,
@@ -609,11 +627,11 @@ pub static SOLARIZED_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme
             b: 0,
             a: 255,
         },
-    ],
-});
+    ]),
+};
 
 /// Light theme inspired by [GitHub's](https://github.com/) light mode UI.
-pub static GITHUB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
+pub static GITHUB_LIGHT: Colorscheme = Colorscheme {
     background: Color {
         r: 255,
         g: 255,
@@ -638,7 +656,7 @@ pub static GITHUB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
         b: 40,
         a: 255,
     },
-    cycle: vec![
+    cycle: Cow::Borrowed(&[
         Color {
             r: 5,
             g: 152,
@@ -669,5 +687,5 @@ pub static GITHUB_LIGHT: LazyLock<Colorscheme> = LazyLock::new(|| Colorscheme {
             b: 223,
             a: 255,
         },
-    ],
-});
+    ]),
+};

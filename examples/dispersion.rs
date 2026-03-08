@@ -39,7 +39,7 @@ fn main() {
     let s1 = ScatterPlot::new(&d1);
     let s2 = ScatterPlot::new(&d2);
 
-    let colorscheme = GITHUB_DARK.clone();
+    let colorscheme = &GITHUB_DARK;
     let g1 = Graph::new(s1);
     let g2 = Graph::new(s2);
     let axis = Axis::fitting(
@@ -66,7 +66,7 @@ fn main() {
                             bottom: 30.0,
                         }),
                 )
-                .colorscheme(colorscheme.clone())
+                .colorscheme(colorscheme)
                 .axis(
                     ConfiguredElement::with_defaults(axis).configure(|a: &mut AxisConfigs| {
                         a.x_arrow = Visibility::Invisible;

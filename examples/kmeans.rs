@@ -45,14 +45,14 @@ fn main() {
     let mut kmeans = KMeans::new(4, &dataset);
     kmeans.fit();
     let kmeans_plot = kmeans.plot();
-    let colorscheme = GITHUB_DARK.clone();
+    let colorscheme = &GITHUB_DARK;
     let graph = Graph::new(kmeans_plot);
     let graph_config: locus::graph::GraphConfig<common::KMeansPlot<'_>> = GraphBuilder::default()
         .viewport(Viewport::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32))
         .grid(ConfiguredElement::with_defaults(grid_lines))
         .axis(ConfiguredElement::with_defaults(axis))
         .subject_configs(KMeansPlotBuilder::default().build().unwrap())
-        .colorscheme(colorscheme.clone())
+        .colorscheme(colorscheme)
         .build()
         .unwrap();
     while !rl.window_should_close() {
